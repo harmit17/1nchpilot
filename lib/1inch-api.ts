@@ -16,6 +16,7 @@ class OneInchAPI {
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
     try {
       console.log('calling 1inch api:', `${this.baseURL}${endpoint}`, params);
+      // console.log('api key:', this.apiKey);
       const response = await axios.get(`${this.baseURL}${endpoint}`, {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,

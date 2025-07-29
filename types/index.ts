@@ -199,10 +199,10 @@ export interface AppError {
 // Constants
 export const SUPPORTED_CHAINS: Chain[] = [
   {
-    id: 421614, // Arbitrum Sepolia
-    name: 'Arbitrum Sepolia',
-    rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
-    blockExplorer: 'https://sepolia.arbiscan.io',
+    id: 42161, // Arbitrum One
+    name: 'Arbitrum One',
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    blockExplorer: 'https://arbiscan.io',
     nativeCurrency: {
       name: 'Ether',
       symbol: 'ETH',
@@ -210,10 +210,10 @@ export const SUPPORTED_CHAINS: Chain[] = [
     },
   },
   {
-    id: 11155420, // Optimism Sepolia
-    name: 'Optimism Sepolia',
-    rpcUrl: 'https://sepolia.optimism.io',
-    blockExplorer: 'https://sepolia-optimism.etherscan.io',
+    id: 10, // Optimism
+    name: 'Optimism',
+    rpcUrl: 'https://mainnet.optimism.io',
+    blockExplorer: 'https://optimistic.etherscan.io',
     nativeCurrency: {
       name: 'Ether',
       symbol: 'ETH',
@@ -221,10 +221,10 @@ export const SUPPORTED_CHAINS: Chain[] = [
     },
   },
   {
-    id: 11155111, // Sepolia (for testing)
-    name: 'Sepolia',
-    rpcUrl: 'https://rpc.sepolia.org',
-    blockExplorer: 'https://sepolia.etherscan.io',
+    id: 1, // Ethereum Mainnet
+    name: 'Ethereum',
+    rpcUrl: 'https://mainnet.infura.io/v3/your-project-id',
+    blockExplorer: 'https://etherscan.io',
     nativeCurrency: {
       name: 'Ether',
       symbol: 'ETH',

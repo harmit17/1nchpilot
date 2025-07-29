@@ -5,11 +5,11 @@ import { publicProvider } from 'wagmi/providers/public';
 import { SUPPORTED_CHAINS } from '@/types';
 
 // Create custom chain objects for testnets
-const arbitrumSepolia = {
-  ...sepolia,
-  id: 421614,
-  name: 'Arbitrum Sepolia',
-  network: 'arbitrum-sepolia',
+const arbitrum = {
+  ...mainnet,
+  id: 42161,
+  name: 'Arbitrum One',
+  network: 'arbitrum',
   nativeCurrency: {
     name: 'Ether',
     symbol: 'ETH',
@@ -17,25 +17,25 @@ const arbitrumSepolia = {
   },
   rpcUrls: {
     default: {
-      http: ['https://sepolia-rollup.arbitrum.io/rpc'],
+      http: ['https://arb1.arbitrum.io/rpc'],
     },
     public: {
-      http: ['https://sepolia-rollup.arbitrum.io/rpc'],
+      http: ['https://arb1.arbitrum.io/rpc'],
     },
   },
   blockExplorers: {
     default: {
       name: 'Arbiscan',
-      url: 'https://sepolia.arbiscan.io',
+      url: 'https://arbiscan.io',
     },
   },
 } as const;
 
-const optimismSepolia = {
-  ...sepolia,
-  id: 11155420,
-  name: 'Optimism Sepolia',
-  network: 'optimism-sepolia',
+const optimism = {
+  ...mainnet,
+  id: 10,
+  name: 'Optimism',
+  network: 'optimism',
   nativeCurrency: {
     name: 'Ether',
     symbol: 'ETH',
@@ -43,22 +43,22 @@ const optimismSepolia = {
   },
   rpcUrls: {
     default: {
-      http: ['https://sepolia.optimism.io'],
+      http: ['https://mainnet.optimism.io'],
     },
     public: {
-      http: ['https://sepolia.optimism.io'],
+      http: ['https://mainnet.optimism.io'],
     },
   },
   blockExplorers: {
     default: {
       name: 'Etherscan',
-      url: 'https://sepolia-optimism.etherscan.io',
+      url: 'https://optimistic.etherscan.io',
     },
   },
 } as const;
 
 const { chains, publicClient, webSocketPublicClient } = configureChains(
-  [mainnet, arbitrumSepolia, optimismSepolia, sepolia],
+  [mainnet, arbitrum, optimism],
   [publicProvider()]
 );
 
