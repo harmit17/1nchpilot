@@ -15,6 +15,7 @@ class OneInchAPI {
 
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
     try {
+      console.log('calling 1inch api:', `${this.baseURL}${endpoint}`, params);
       const response = await axios.get(`${this.baseURL}${endpoint}`, {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -22,6 +23,7 @@ class OneInchAPI {
         },
         params,
       });
+      console.log('1inch API Response:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('1inch API Error:', error.response?.data || error.message);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAccount } from 'wagmi';
+import { useAccount, useNetwork } from 'wagmi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -25,6 +25,7 @@ import { formatCurrency } from '@/utils';
 
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
+  const { chain } = useNetwork();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,20 +33,20 @@ export default function DashboardPage() {
   const [showStrategySelector, setShowStrategySelector] = useState(false);
 
   useEffect(() => {
-    if (isConnected && address) {
+    if (isConnected && address && chain) {
       loadPortfolio();
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, chain]);
 
   const loadPortfolio = async () => {
-    if (!address) return;
+    if (!address || !chain) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      // Use Ethereum mainnet for real 1inch API data
-      const portfolioData = await oneInchAPI.getPortfolioData(1, address); // Ethereum mainnet
+      console.log(`Loading portfolio for chain ${chain.id} and address ${address}`);
+      const portfolioData = await oneInchAPI.getPortfolioData(chain.id, address);
       setPortfolio(portfolioData);
     } catch (err) {
       console.error('Error loading portfolio:', err);
@@ -79,6 +80,14 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
+              {chain && (
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <span>Network:</span>
+                  <span className="font-semibold text-gray-900">
+                    {chain.name} ({chain.id})
+                  </span>
+                </div>
+              )}
               {portfolio && (
                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <span>Total Value:</span>
