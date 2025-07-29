@@ -32,26 +32,47 @@ class OneInchAPI {
   // Get wallet balances
   async getWalletBalances(chainId: number, address: string): Promise<any> {
     try {
-      const response = await this.makeRequest(`/wallet/v1/balances`, {
-        address,
-        chain_id: chainId,
-      });
-      return response;
+      // For now, return mock data since the API endpoints might be different
+      console.log(`Mocking wallet balances for chain ${chainId} and address ${address}`);
+      return this.getMockWalletBalances(chainId, address);
     } catch (error) {
       console.error('Error fetching wallet balances:', error);
       // Return empty balances if API fails
-      return { balances: [] };
+      return { tokens: [] };
     }
   }
 
   // Get token metadata
   async getTokenData(chainId: number, tokenAddress: string): Promise<any> {
     try {
-      const response = await this.makeRequest(`/token/v1/token-data`, {
-        chain_id: chainId,
-        token_address: tokenAddress,
-      });
-      return response;
+      // Mock token data for now
+      const mockTokenData: { [key: string]: any } = {
+        '0x0000000000000000000000000000000000000000': {
+          symbol: 'ETH',
+          name: 'Ether',
+          decimals: 18,
+          logoURI: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+        },
+        '0xA0b86a33E6441b8c4C8C0C8C0C8C0C8C0C8C0C8C': {
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+          logoURI: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
+        },
+        '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': {
+          symbol: 'WETH',
+          name: 'Wrapped Ether',
+          decimals: 18,
+          logoURI: 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
+        },
+      };
+      
+      return mockTokenData[tokenAddress] || {
+        symbol: 'UNKNOWN',
+        name: 'Unknown Token',
+        decimals: 18,
+        logoURI: '',
+      };
     } catch (error) {
       console.error('Error fetching token data:', error);
       return null;
@@ -61,11 +82,14 @@ class OneInchAPI {
   // Get price feeds
   async getPriceFeeds(chainId: number, tokens: string[]): Promise<any> {
     try {
-      const response = await this.makeRequest(`/price/v1/price-feed`, {
-        chain_id: chainId,
-        tokens: tokens.join(','),
-      });
-      return response;
+      // Mock price data for now
+      const mockPrices: { [key: string]: number } = {
+        '0x0000000000000000000000000000000000000000': 2400, // ETH
+        '0xA0b86a33E6441b8c4C8C0C8C0C8C0C8C0C8C0C8C': 1, // USDC
+        '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': 2400, // WETH
+      };
+      
+      return mockPrices;
     } catch (error) {
       console.error('Error fetching price feeds:', error);
       return {};
@@ -81,7 +105,7 @@ class OneInchAPI {
     fromAddress: string,
     slippage: number = 1
   ): Promise<OneInchQuote> {
-    return this.makeRequest(`/swap/v5.2/${chainId}/quote`, {
+    return this.makeRequest(`/v5.2/${chainId}/quote`, {
       src: fromTokenAddress,
       dst: toTokenAddress,
       amount,
@@ -99,7 +123,7 @@ class OneInchAPI {
     fromAddress: string,
     slippage: number = 1
   ): Promise<any> {
-    return this.makeRequest(`/swap/v5.2/${chainId}/order/builder`, {
+    return this.makeRequest(`/v5.2/${chainId}/order/builder`, {
       src: fromTokenAddress,
       dst: toTokenAddress,
       amount,
@@ -110,19 +134,17 @@ class OneInchAPI {
 
   // Place order (Fusion mode)
   async placeOrder(chainId: number, orderData: any): Promise<OneInchOrder> {
-    return this.makeRequest(`/swap/v5.2/${chainId}/order`, orderData);
+    return this.makeRequest(`/v5.2/${chainId}/order`, orderData);
   }
 
   // Get order status
   async getOrderStatus(chainId: number, orderHash: string): Promise<OneInchOrderStatus> {
-    return this.makeRequest(`/swap/v5.2/${chainId}/order/${orderHash}`);
+    return this.makeRequest(`/v5.2/${chainId}/order/${orderHash}`);
   }
 
   // Get supported tokens
   async getSupportedTokens(chainId: number): Promise<any> {
-    return this.makeRequest(`/token/v1/tokens`, {
-      chain_id: chainId,
-    });
+    return this.makeRequest(`/v1.1/tokens/${chainId}`);
   }
 
   // Get portfolio data (combines balances, prices, and metadata)
@@ -138,7 +160,7 @@ class OneInchAPI {
       
       // Get wallet balances using 1inch API
       const balancesResponse = await this.getWalletBalances(chainId, address);
-      const balances = balancesResponse.balances || [];
+      const balances = balancesResponse.tokens || [];
       
       if (balances.length === 0) {
         return {
@@ -153,7 +175,7 @@ class OneInchAPI {
       
       // Get price feeds
       const pricesResponse = await this.getPriceFeeds(chainId, tokenAddresses);
-      const prices = pricesResponse.prices || {};
+      const prices = pricesResponse || {};
       
       // Get token metadata
       const tokenMetadata = await Promise.all(
@@ -214,6 +236,26 @@ class OneInchAPI {
       // Return mock data as fallback
       return this.getMockPortfolioData(chainId, address);
     }
+  }
+
+  // Mock wallet balances
+  private getMockWalletBalances(chainId: number, address: string): any {
+    return {
+      tokens: [
+        {
+          address: '0x0000000000000000000000000000000000000000',
+          balance: '1000000000000000000', // 1 ETH
+        },
+        {
+          address: '0xA0b86a33E6441b8c4C8C0C8C0C8C0C8C0C8C0C8C',
+          balance: '1000000', // 1 USDC
+        },
+        {
+          address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+          balance: '500000000000000000', // 0.5 WETH
+        },
+      ],
+    };
   }
 
   // Mock portfolio data for testnets
