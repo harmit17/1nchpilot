@@ -10,7 +10,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <WagmiConfig config={wagmiConfig}>
       <RainbowKitProvider
         chains={chains}
-        initialChain={421614}
+        initialChain={1}
         showRecentTransactions={true}
         coolMode
       >

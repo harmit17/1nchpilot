@@ -44,7 +44,8 @@ export default function DashboardPage() {
     setError(null);
     
     try {
-      const portfolioData = await oneInchAPI.getPortfolioData(421614, address); // Arbitrum Sepolia
+      // Use Ethereum mainnet for real 1inch API data
+      const portfolioData = await oneInchAPI.getPortfolioData(1, address); // Ethereum mainnet
       setPortfolio(portfolioData);
     } catch (err) {
       console.error('Error loading portfolio:', err);

@@ -1,6 +1,6 @@
 import { getDefaultWallets } from '@rainbow-me/rainbowkit';
 import { configureChains, createConfig } from 'wagmi';
-import { sepolia } from 'wagmi/chains';
+import { mainnet, sepolia } from 'wagmi/chains';
 import { publicProvider } from 'wagmi/providers/public';
 import { SUPPORTED_CHAINS } from '@/types';
 
@@ -58,7 +58,7 @@ const optimismSepolia = {
 } as const;
 
 const { chains, publicClient, webSocketPublicClient } = configureChains(
-  [arbitrumSepolia, optimismSepolia, sepolia],
+  [mainnet, arbitrumSepolia, optimismSepolia, sepolia],
   [publicProvider()]
 );
 
