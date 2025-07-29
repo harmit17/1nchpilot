@@ -16,15 +16,24 @@ class OneInchAPI {
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
     try {
       console.log('🚀 Calling 1inch API:', `${this.baseURL}${endpoint}`);
-      console.log('📋 Parameters:', params);
+      
+      // Convert parameters to readable string
+      const paramString = Object.entries(params)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('&');
+      console.log('📋 Parameters:', paramString || 'None');
       console.log('🔑 API Key:', this.apiKey ? 'Present' : 'Missing');
       
-      const response = await axios.get(`${this.baseURL}${endpoint}`, {
+      // For browser requests, we need to use a proxy or server-side API
+      // Since 1inch API has CORS restrictions, we'll create a server-side API route
+      const response = await axios.get(`/api/1inch${endpoint}`, {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
           'Accept': 'application/json',
         },
-        params,
+        params: {
+          ...params,
+          apiKey: this.apiKey,
+        },
       });
       
       console.log('✅ 1inch API Response:', JSON.stringify(response.data, null, 2));
