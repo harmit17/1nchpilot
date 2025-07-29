@@ -44,7 +44,7 @@ export default function DashboardPage() {
     setError(null);
     
     try {
-      const portfolioData = await oneInchAPI.getPortfolioData(1, address);
+      const portfolioData = await oneInchAPI.getPortfolioData(421614, address); // Arbitrum Sepolia
       setPortfolio(portfolioData);
     } catch (err) {
       console.error('Error loading portfolio:', err);

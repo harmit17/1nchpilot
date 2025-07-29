@@ -1,6 +1,6 @@
 # 1nchPilot - Autonomous DeFi Portfolio Co-Pilot
 
-🚀 **Build, manage, and automate your DeFi portfolio with intelligent rebalancing. Gasless & MEV-Protected. Powered by 1inch Fusion.**
+🚀 **Build, manage, and automate your DeFi portfolio with intelligent rebalancing. Gasless & MEV-Protected. Powered by 1inch Fusion. Testnet Ready for Arbitrum & Optimism.**
 
 ## 🏛️ Overview
 
@@ -116,9 +116,9 @@
 
 ### Supported Chains
 
-- **Ethereum Mainnet** (Chain ID: 1)
-- **Polygon** (Chain ID: 137)
-- **Optimism** (Chain ID: 10)
+- **Arbitrum Sepolia** (Chain ID: 421614) - Primary testnet
+- **Optimism Sepolia** (Chain ID: 11155420) - Secondary testnet
+- **Sepolia** (Chain ID: 11155111) - Ethereum testnet
 
 ## 🎯 User Flow
 

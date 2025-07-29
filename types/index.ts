@@ -199,10 +199,10 @@ export interface AppError {
 // Constants
 export const SUPPORTED_CHAINS: Chain[] = [
   {
-    id: 1,
-    name: 'Ethereum',
-    rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/your-api-key',
-    blockExplorer: 'https://etherscan.io',
+    id: 421614, // Arbitrum Sepolia
+    name: 'Arbitrum Sepolia',
+    rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
+    blockExplorer: 'https://sepolia.arbiscan.io',
     nativeCurrency: {
       name: 'Ether',
       symbol: 'ETH',
@@ -210,21 +210,21 @@ export const SUPPORTED_CHAINS: Chain[] = [
     },
   },
   {
-    id: 137,
-    name: 'Polygon',
-    rpcUrl: 'https://polygon-rpc.com',
-    blockExplorer: 'https://polygonscan.com',
+    id: 11155420, // Optimism Sepolia
+    name: 'Optimism Sepolia',
+    rpcUrl: 'https://sepolia.optimism.io',
+    blockExplorer: 'https://sepolia-optimism.etherscan.io',
     nativeCurrency: {
-      name: 'MATIC',
-      symbol: 'MATIC',
+      name: 'Ether',
+      symbol: 'ETH',
       decimals: 18,
     },
   },
   {
-    id: 10,
-    name: 'Optimism',
-    rpcUrl: 'https://mainnet.optimism.io',
-    blockExplorer: 'https://optimistic.etherscan.io',
+    id: 11155111, // Sepolia (for testing)
+    name: 'Sepolia',
+    rpcUrl: 'https://rpc.sepolia.org',
+    blockExplorer: 'https://sepolia.etherscan.io',
     nativeCurrency: {
       name: 'Ether',
       symbol: 'ETH',

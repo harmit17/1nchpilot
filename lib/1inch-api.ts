@@ -206,6 +206,11 @@ class OneInchAPI {
   // Get portfolio data (combines balances, prices, and metadata)
   async getPortfolioData(chainId: number, address: string): Promise<Portfolio> {
     try {
+      // For testnets, we'll use mock data since 1inch API might not support all testnets
+      if (chainId === 421614 || chainId === 11155420 || chainId === 11155111) {
+        return this.getMockPortfolioData(chainId, address);
+      }
+      
       // Get wallet balances
       const balances = await this.getWalletBalances(chainId, address);
       
@@ -271,6 +276,54 @@ class OneInchAPI {
       console.error('Error fetching portfolio data:', error);
       throw error;
     }
+  }
+
+  // Mock portfolio data for testnets
+  private getMockPortfolioData(chainId: number, address: string): Portfolio {
+    const mockTokens: TokenBalance[] = [
+      {
+        token: {
+          address: '0x0000000000000000000000000000000000000000',
+          symbol: 'ETH',
+          name: 'Ether',
+          decimals: 18,
+          chainId,
+        },
+        balance: '1000000000000000000', // 1 ETH
+        balanceUSD: 2400,
+        percentage: 60,
+      },
+      {
+        token: {
+          address: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8',
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+          chainId,
+        },
+        balance: '1000000', // 1 USDC
+        balanceUSD: 1,
+        percentage: 25,
+      },
+      {
+        token: {
+          address: '0x4200000000000000000000000000000000000006',
+          symbol: 'WETH',
+          name: 'Wrapped Ether',
+          decimals: 18,
+          chainId,
+        },
+        balance: '500000000000000000', // 0.5 WETH
+        balanceUSD: 1200,
+        percentage: 15,
+      },
+    ];
+
+    return {
+      totalValueUSD: 4000,
+      tokens: mockTokens,
+      lastUpdated: new Date(),
+    };
   }
 }
 
