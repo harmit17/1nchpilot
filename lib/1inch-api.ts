@@ -2,14 +2,14 @@ import axios from 'axios';
 import { Token, TokenBalance, Portfolio, OneInchQuote, OneInchOrder, OneInchOrderStatus } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_1INCH_API_URL || 'https://api.1inch.dev';
-const API_KEY = process.env.NEXT_PUBLIC_1INCH_API_KEY || '1z755hAGCmNbkmVBE2DGFQSFIFuEDDaL';
+const API_KEY = process.env.NEXT_PUBLIC_1INCH_API_KEY;
 
 class OneInchAPI {
   private apiKey: string;
   private baseURL: string;
 
   constructor() {
-    this.apiKey = API_KEY;
+    this.apiKey = API_KEY || '';
     this.baseURL = API_BASE_URL;
   }
 
@@ -34,12 +34,10 @@ class OneInchAPI {
   // Get wallet balances
   async getWalletBalances(chainId: number, address: string): Promise<any> {
     try {
-      // For now, return mock data since the API endpoints might be different
-      console.log(`Mocking wallet balances for chain ${chainId} and address ${address}`);
-      return this.getMockWalletBalances(chainId, address);
+      const response = await this.makeRequest(`/v1.1/${chainId}/address/${address}/balances`);
+      return response;
     } catch (error) {
       console.error('Error fetching wallet balances:', error);
-      // Return empty balances if API fails
       return { tokens: [] };
     }
   }
@@ -47,34 +45,10 @@ class OneInchAPI {
   // Get token metadata
   async getTokenData(chainId: number, tokenAddress: string): Promise<any> {
     try {
-      // Mock token data for now
-      const mockTokenData: { [key: string]: any } = {
-        '0x0000000000000000000000000000000000000000': {
-          symbol: 'ETH',
-          name: 'Ether',
-          decimals: 18,
-          logoURI: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
-        },
-        '0xA0b86a33E6441b8c4C8C0C8C0C8C0C8C0C8C0C8C': {
-          symbol: 'USDC',
-          name: 'USD Coin',
-          decimals: 6,
-          logoURI: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
-        },
-        '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': {
-          symbol: 'WETH',
-          name: 'Wrapped Ether',
-          decimals: 18,
-          logoURI: 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
-        },
-      };
-      
-      return mockTokenData[tokenAddress] || {
-        symbol: 'UNKNOWN',
-        name: 'Unknown Token',
-        decimals: 18,
-        logoURI: '',
-      };
+      const response = await this.makeRequest(`/v1.1/token-data/${chainId}`, {
+        tokenAddress,
+      });
+      return response;
     } catch (error) {
       console.error('Error fetching token data:', error);
       return null;
@@ -84,14 +58,10 @@ class OneInchAPI {
   // Get price feeds
   async getPriceFeeds(chainId: number, tokens: string[]): Promise<any> {
     try {
-      // Mock price data for now
-      const mockPrices: { [key: string]: number } = {
-        '0x0000000000000000000000000000000000000000': 2400, // ETH
-        '0xA0b86a33E6441b8c4C8C0C8C0C8C0C8C0C8C0C8C': 1, // USDC
-        '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': 2400, // WETH
-      };
-      
-      return mockPrices;
+      const response = await this.makeRequest(`/v1.1/price-feed/${chainId}`, {
+        tokens: tokens.join(','),
+      });
+      return response;
     } catch (error) {
       console.error('Error fetching price feeds:', error);
       return {};
@@ -152,12 +122,6 @@ class OneInchAPI {
   // Get portfolio data (combines balances, prices, and metadata)
   async getPortfolioData(chainId: number, address: string): Promise<Portfolio> {
     try {
-      // For testnets, we'll use mock data since 1inch API might not support all testnets
-      if (chainId === 421614 || chainId === 11155420 || chainId === 11155111) {
-        return this.getMockPortfolioData(chainId, address);
-      }
-      
-      // For mainnet, use real 1inch API
       console.log(`Fetching portfolio data for chain ${chainId} and address ${address}`);
       
       // Get wallet balances using 1inch API
@@ -235,77 +199,8 @@ class OneInchAPI {
       };
     } catch (error) {
       console.error('Error fetching portfolio data:', error);
-      // Return mock data as fallback
-      return this.getMockPortfolioData(chainId, address);
+      throw error;
     }
-  }
-
-  // Mock wallet balances
-  private getMockWalletBalances(chainId: number, address: string): any {
-    return {
-      tokens: [
-        {
-          address: '0x0000000000000000000000000000000000000000',
-          balance: '1000000000000000000', // 1 ETH
-        },
-        {
-          address: '0xA0b86a33E6441b8c4C8C0C8C0C8C0C8C0C8C0C8C',
-          balance: '1000000', // 1 USDC
-        },
-        {
-          address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
-          balance: '500000000000000000', // 0.5 WETH
-        },
-      ],
-    };
-  }
-
-  // Mock portfolio data for testnets
-  private getMockPortfolioData(chainId: number, address: string): Portfolio {
-    const mockTokens: TokenBalance[] = [
-      {
-        token: {
-          address: '0x0000000000000000000000000000000000000000',
-          symbol: 'ETH',
-          name: 'Ether',
-          decimals: 18,
-          chainId,
-        },
-        balance: '1000000000000000000', // 1 ETH
-        balanceUSD: 2400,
-        percentage: 60,
-      },
-      {
-        token: {
-          address: '0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8',
-          symbol: 'USDC',
-          name: 'USD Coin',
-          decimals: 6,
-          chainId,
-        },
-        balance: '1000000', // 1 USDC
-        balanceUSD: 1,
-        percentage: 25,
-      },
-      {
-        token: {
-          address: '0x4200000000000000000000000000000000000006',
-          symbol: 'WETH',
-          name: 'Wrapped Ether',
-          decimals: 18,
-          chainId,
-        },
-        balance: '500000000000000000', // 0.5 WETH
-        balanceUSD: 1200,
-        percentage: 15,
-      },
-    ];
-
-    return {
-      totalValueUSD: 4000,
-      tokens: mockTokens,
-      lastUpdated: new Date(),
-    };
   }
 }
 
