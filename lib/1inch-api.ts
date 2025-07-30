@@ -54,7 +54,7 @@ class OneInchAPI {
   async getWalletBalances(chainId: number, address: string): Promise<any> {
     try {
       console.log(`💰 Fetching wallet balances for chain ${chainId} and address ${address}`);
-      const response = await this.makeRequest(`/v1.1/${chainId}/address/${address}/balances`);
+      const response = await this.makeRequest(`/balance/v1.2/${chainId}/balances/${address}`);
       console.log(`📊 Wallet balances response:`, JSON.stringify(response, null, 2));
       return response;
     } catch (error) {
@@ -67,9 +67,7 @@ class OneInchAPI {
   async getTokenData(chainId: number, tokenAddress: string): Promise<any> {
     try {
       console.log(`🪙 Fetching token data for chain ${chainId} and token ${tokenAddress}`);
-      const response = await this.makeRequest(`/v1.1/token-data/${chainId}`, {
-        tokenAddress,
-      });
+      const response = await this.makeRequest(`/token/v1.2/${chainId}/tokens/${tokenAddress}`);
       console.log(`📋 Token data response:`, JSON.stringify(response, null, 2));
       return response;
     } catch (error) {
@@ -82,7 +80,7 @@ class OneInchAPI {
   async getPriceFeeds(chainId: number, tokens: string[]): Promise<any> {
     try {
       console.log(`💲 Fetching price feeds for chain ${chainId} and tokens:`, tokens);
-      const response = await this.makeRequest(`/v1.1/price-feed/${chainId}`, {
+      const response = await this.makeRequest(`/price/v1.2/${chainId}/prices`, {
         tokens: tokens.join(','),
       });
       console.log(`📈 Price feeds response:`, JSON.stringify(response, null, 2));
@@ -141,7 +139,7 @@ class OneInchAPI {
 
   // Get supported tokens
   async getSupportedTokens(chainId: number): Promise<any> {
-    return this.makeRequest(`/v1.1/tokens/${chainId}`);
+    return this.makeRequest(`/token/v1.2/${chainId}/tokens`);
   }
 
   // Get portfolio data (combines balances, prices, and metadata)
@@ -151,7 +149,12 @@ class OneInchAPI {
       
       // Get wallet balances using 1inch API
       const balancesResponse = await this.getWalletBalances(chainId, address);
-      const balances = balancesResponse.tokens || [];
+      
+      // Handle the new response format (object with token addresses as keys)
+      const balances = balancesResponse ? Object.entries(balancesResponse).map(([address, balance]) => ({
+        address,
+        balance: balance as string
+      })) : [];
       
       console.log(`🔍 Found ${balances.length} token balances`);
       
