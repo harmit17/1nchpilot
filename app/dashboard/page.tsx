@@ -31,12 +31,17 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [showRebalancing, setShowRebalancing] = useState(false);
   const [showStrategySelector, setShowStrategySelector] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (isConnected && address && chain) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && isConnected && address && chain) {
       loadPortfolio();
     }
-  }, [isConnected, address, chain]);
+  }, [mounted, isConnected, address, chain]);
 
   const loadPortfolio = async () => {
     if (!address || !chain) return;
@@ -55,6 +60,18 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isConnected) {
     return (
