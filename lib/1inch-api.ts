@@ -23,12 +23,13 @@ class OneInchAPI {
 
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
     try {
-      console.log('🚀 Calling 1inch API via proxy:', `/api/1inch${endpoint}`);
+      console.log('🚀 Calling 1inch API via proxy:', 'https://api.1inch.dev/balance/v1.2/1/balances/');
 
       // The API key is NO LONGER sent from the client.
-      const response = await axios.get(`/api/1inch${endpoint}`, {
+      const response = await axios.get('https://api.1inch.dev/balance/v1.2/1/balances/', {
         headers: {
           'Accept': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
         },
         params: params, // ✅ Correct: Only business logic params are sent.
       });
