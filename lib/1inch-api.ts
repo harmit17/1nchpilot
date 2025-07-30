@@ -1,6 +1,14 @@
 import axios from 'axios';
 import { Token, TokenBalance, Portfolio, OneInchQuote, OneInchOrder, OneInchOrderStatus } from '@/types';
 
+// --- Configuration for Rate Limiting ---
+// The number of requests to send in a single parallel batch.
+// 1inch has a rate limit of around 10 requests per second (RPS). A batch size of 5 is safe.
+const BATCH_SIZE = 5; 
+// The delay in milliseconds between each batch. 1000ms = 1 second.
+// This ensures we stay under the RPS limit.
+const DELAY_BETWEEN_BATCHES_MS = 1000;
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_1INCH_API_URL || 'https://api.1inch.dev';
 const API_KEY = process.env.NEXT_PUBLIC_1INCH_API_KEY;
 
@@ -15,196 +23,135 @@ class OneInchAPI {
 
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
     try {
-      console.log('🚀 Calling 1inch API:', `${this.baseURL}${endpoint}`);
-      
-      // Convert parameters to readable string
-      const paramString = Object.entries(params)
-        .map(([key, value]) => `${key}=${value}`)
-        .join('&');
-      console.log('📋 Parameters:', paramString || 'None');
-      console.log('🔑 API Key:', this.apiKey ? 'Present' : 'Missing');
-      
-      // For browser requests, we need to use a proxy or server-side API
-      // Since 1inch API has CORS restrictions, we'll create a server-side API route
+      console.log('🚀 Calling 1inch API via proxy:', `/api/1inch${endpoint}`);
+
+      // The API key is NO LONGER sent from the client.
       const response = await axios.get(`/api/1inch${endpoint}`, {
         headers: {
           'Accept': 'application/json',
         },
-        params: {
-          ...params,
-          apiKey: this.apiKey,
-        },
+        params: params, // ✅ Correct: Only business logic params are sent.
       });
       
-      console.log('✅ 1inch API Response:', JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error: any) {
-      console.error('❌ 1inch API Error:', error.response?.data || error.message);
+      console.error('❌ API request via proxy failed:', error.response?.data || error.message);
       console.error('🔍 Error Details:', {
         status: error.response?.status,
-        statusText: error.response?.statusText,
         url: error.config?.url,
-        method: error.config?.method,
       });
       throw new Error(error.response?.data?.message || 'API request failed');
     }
+  }
+
+  /**
+   * NEW HELPER METHOD: Processes an array of items in batches to avoid rate limiting.
+   * @param items - The array of items to process.
+   * @param processFn - The async function to apply to each item.
+   * @returns An array of Promise.allSettled results.
+   */
+  private async _processInBatches<T, R>(items: T[], processFn: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {
+    let allResults: PromiseSettledResult<R>[] = [];
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
+        const batchItems = items.slice(i, i + BATCH_SIZE);
+        console.log(`🔄 Processing batch of ${batchItems.length} items (starting at index ${i})...`);
+        
+        const batchPromises = batchItems.map(processFn);
+        const batchResults = await Promise.allSettled(batchPromises);
+        
+        allResults = allResults.concat(batchResults);
+
+        if (i + BATCH_SIZE < items.length) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES_MS));
+        }
+    }
+    return allResults;
   }
 
   // Get wallet balances
   async getWalletBalances(chainId: number, address: string): Promise<any> {
     try {
       console.log(`💰 Fetching wallet balances for chain ${chainId} and address ${address}`);
-      const response = await this.makeRequest(`/balance/v1.2/${chainId}/balances/${address}`);
-      console.log(`📊 Wallet balances response:`, JSON.stringify(response, null, 2));
-      return response;
+      return await this.makeRequest(`/balance/v1.2/${chainId}/balances/${address}`);
     } catch (error) {
       console.error('❌ Error fetching wallet balances:', error);
-      return { tokens: [] };
+      return {}; // Return an empty object on failure as per original structure
     }
   }
 
   // Get token metadata
   async getTokenData(chainId: number, tokenAddress: string): Promise<any> {
-    try {
-      console.log(`🪙 Fetching token data for chain ${chainId} and token ${tokenAddress}`);
-      const response = await this.makeRequest(`/token/v1.2/${chainId}/tokens/${tokenAddress}`);
-      console.log(`📋 Token data response:`, JSON.stringify(response, null, 2));
-      return response;
-    } catch (error) {
-      console.error('❌ Error fetching token data:', error);
-      return null;
-    }
+    // This function will now be called by the batch processor.
+    // Errors will be caught by Promise.allSettled.
+    return this.makeRequest(`/token/v1.2/${chainId}/tokens/${tokenAddress}`);
   }
 
   // Get price feeds
   async getPriceFeeds(chainId: number, tokens: string[]): Promise<any> {
     try {
-      console.log(`💲 Fetching price feeds for chain ${chainId} and tokens:`, tokens);
-      const response = await this.makeRequest(`/price/v1.2/${chainId}/prices`, {
+      console.log(`💲 Fetching price feeds for ${tokens.length} tokens...`);
+      return await this.makeRequest(`/price/v1.2/${chainId}/prices`, {
         tokens: tokens.join(','),
       });
-      console.log(`📈 Price feeds response:`, JSON.stringify(response, null, 2));
-      return response;
     } catch (error) {
       console.error('❌ Error fetching price feeds:', error);
       return {};
     }
   }
 
-  // Get swap quote
-  async getQuote(
-    chainId: number,
-    fromTokenAddress: string,
-    toTokenAddress: string,
-    amount: string,
-    fromAddress: string,
-    slippage: number = 1
-  ): Promise<OneInchQuote> {
-    return this.makeRequest(`/v5.2/${chainId}/quote`, {
-      src: fromTokenAddress,
-      dst: toTokenAddress,
-      amount,
-      from: fromAddress,
-      slippage,
-    });
+  // --- Other methods remain unchanged ---
+  async getQuote(chainId: number, fromTokenAddress: string, toTokenAddress: string, amount: string, fromAddress: string, slippage: number = 1): Promise<OneInchQuote> {
+    return this.makeRequest(`/v5.2/${chainId}/quote`, { src: fromTokenAddress, dst: toTokenAddress, amount, from: fromAddress, slippage });
   }
-
-  // Build order for Fusion mode
-  async buildOrder(
-    chainId: number,
-    fromTokenAddress: string,
-    toTokenAddress: string,
-    amount: string,
-    fromAddress: string,
-    slippage: number = 1
-  ): Promise<any> {
-    return this.makeRequest(`/v5.2/${chainId}/order/builder`, {
-      src: fromTokenAddress,
-      dst: toTokenAddress,
-      amount,
-      from: fromAddress,
-      slippage,
-    });
+  async buildOrder(chainId: number, fromTokenAddress: string, toTokenAddress: string, amount: string, fromAddress: string, slippage: number = 1): Promise<any> {
+    return this.makeRequest(`/v5.2/${chainId}/order/builder`, { src: fromTokenAddress, dst: toTokenAddress, amount, from: fromAddress, slippage });
   }
-
-  // Place order (Fusion mode)
   async placeOrder(chainId: number, orderData: any): Promise<OneInchOrder> {
     return this.makeRequest(`/v5.2/${chainId}/order`, orderData);
   }
-
-  // Get order status
   async getOrderStatus(chainId: number, orderHash: string): Promise<OneInchOrderStatus> {
     return this.makeRequest(`/v5.2/${chainId}/order/${orderHash}`);
   }
-
-  // Get supported tokens
   async getSupportedTokens(chainId: number): Promise<any> {
     return this.makeRequest(`/token/v1.2/${chainId}/tokens`);
   }
 
-  // Get portfolio data (combines balances, prices, and metadata)
+  /**
+   * REWRITTEN METHOD: Get portfolio data with rate-limiting for token metadata.
+   */
   async getPortfolioData(chainId: number, address: string): Promise<Portfolio> {
     try {
       console.log(`📊 Fetching portfolio data for chain ${chainId} and address ${address}`);
       
-      // Get wallet balances using 1inch API
       const balancesResponse = await this.getWalletBalances(chainId, address);
-      
-      // Handle the new response format (object with token addresses as keys)
-      const balances = balancesResponse ? Object.entries(balancesResponse).map(([address, balance]) => ({
-        address,
-        balance: balance as string
-      })) : [];
+      const balances = balancesResponse ? Object.entries(balancesResponse).map(([address, balance]) => ({ address, balance: balance as string })) : [];
       
       console.log(`🔍 Found ${balances.length} token balances`);
       
       if (balances.length === 0) {
-        console.log(`⚠️ No token balances found for address ${address}`);
-        return {
-          totalValueUSD: 0,
-          tokens: [],
-          lastUpdated: new Date(),
-        };
+        return { totalValueUSD: 0, tokens: [], lastUpdated: new Date() };
       }
       
-      // Get token addresses for price feeds
-      const tokenAddresses = balances.map((token: any) => token.address);
-      console.log(`🪙 Token addresses for price lookup:`, tokenAddresses);
+      const tokenAddresses = balances.map(token => token.address);
       
-      // Get price feeds
-      const pricesResponse = await this.getPriceFeeds(chainId, tokenAddresses);
-      const prices = pricesResponse || {};
+      // Fetch prices for all tokens in a single efficient call
+      const prices = await this.getPriceFeeds(chainId, tokenAddresses) || {};
       
-      // Get token metadata
-      const tokenMetadata = await Promise.all(
-        tokenAddresses.map(async (address: string) => {
-          try {
-            return await this.getTokenData(chainId, address);
-          } catch (error) {
-            console.warn(`⚠️ Failed to get metadata for token ${address}:`, error);
-            return null;
-          }
-        })
-      );
+      // Fetch token metadata in controlled batches to avoid rate limiting
+      console.log(`🪙 Fetching metadata for ${tokenAddresses.length} tokens in batches...`);
+      const metadataResults = await this._processInBatches(tokenAddresses, (tokenAddress) => this.getTokenData(chainId, tokenAddress));
 
       // Process and combine data
       const tokens: TokenBalance[] = [];
       let totalValueUSD = 0;
 
-      console.log(`🔄 Processing ${balances.length} tokens...`);
-
-      balances.forEach((balance: any, index: number) => {
-        const metadata = tokenMetadata[index];
+      balances.forEach((balance, index) => {
+        const metadataResult = metadataResults[index];
         const price = prices[balance.address];
-        
-        console.log(`📝 Processing token ${index + 1}/${balances.length}:`, {
-          address: balance.address,
-          balance: balance.balance,
-          hasMetadata: !!metadata,
-          hasPrice: !!price,
-        });
-        
-        if (metadata && price) {
+
+        // Check if the metadata request was successful and we have a price
+        if (metadataResult.status === 'fulfilled' && metadataResult.value && price) {
+          const metadata = metadataResult.value;
           const token: Token = {
             address: balance.address,
             symbol: metadata.symbol,
@@ -214,19 +161,23 @@ class OneInchAPI {
             chainId,
           };
 
-          const balanceUSD = parseFloat(balance.balance) * price;
+          const balanceInUnits = parseFloat(balance.balance) / (10 ** token.decimals);
+          const balanceUSD = balanceInUnits * price;
           totalValueUSD += balanceUSD;
 
           tokens.push({
             token,
-            balance: balance.balance,
+            balance: balance.balance, // Keep raw balance
             balanceUSD,
-            percentage: 0, // Will be calculated below
+            percentage: 0, 
           });
-          
-          console.log(`✅ Added token: ${metadata.symbol} - Balance: ${balance.balance}, Price: $${price}, Value: $${balanceUSD}`);
+
         } else {
-          console.log(`❌ Skipped token ${balance.address} - Missing metadata or price`);
+            if (metadataResult.status === 'rejected') {
+                console.log(`❌ Skipped token ${balance.address} - Metadata fetch failed:`, (metadataResult.reason as Error).message);
+            } else {
+                console.log(`❌ Skipped token ${balance.address} - Missing price.`);
+            }
         }
       });
 
@@ -237,19 +188,22 @@ class OneInchAPI {
         });
       }
 
+      // Sort tokens by value
+      tokens.sort((a, b) => b.balanceUSD - a.balanceUSD);
+
       const portfolio = {
         totalValueUSD,
         tokens,
         lastUpdated: new Date(),
       };
       
-      console.log(`🎉 Portfolio data complete:`, JSON.stringify(portfolio, null, 2));
+      console.log(`🎉 Portfolio data complete. Total Value: $${totalValueUSD.toFixed(2)}`);
       return portfolio;
     } catch (error) {
-      console.error('❌ Error fetching portfolio data:', error);
+      console.error('❌ A critical error occurred while fetching portfolio data:', error);
       throw error;
     }
   }
 }
 
-export const oneInchAPI = new OneInchAPI(); 
+export const oneInchAPI = new OneInchAPI();

@@ -1,6 +1,7 @@
 import { getDefaultWallets } from '@rainbow-me/rainbowkit';
 import { configureChains, createConfig } from 'wagmi';
 import { mainnet, sepolia } from 'wagmi/chains';
+import { alchemyProvider } from 'wagmi/providers/alchemy';
 import { publicProvider } from 'wagmi/providers/public';
 import { SUPPORTED_CHAINS } from '@/types';
 
@@ -59,12 +60,15 @@ const optimism = {
 
 const { chains, publicClient, webSocketPublicClient } = configureChains(
   [mainnet, arbitrum, optimism],
-  [publicProvider()]
+  [
+    alchemyProvider({ apiKey: process.env.NEXT_PUBLIC_ALCHEMY_ID || '' }),
+    publicProvider()
+  ]
 );
 
 const { connectors } = getDefaultWallets({
   appName: '1nchPilot - Autonomous DeFi Portfolio Co-Pilot',
-  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || 'your-project-id',
+  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || '1nchpilot-project',
   chains,
 });
 
