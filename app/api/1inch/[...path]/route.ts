@@ -6,6 +6,12 @@ import { NextRequest, NextResponse } from 'next/server';
 const API_BASE_URL = process.env.NEXT_PUBLIC_1INCH_API_URL || 'https://api.1inch.dev';
 const API_KEY = process.env.NEXT_PUBLIC_1INCH_API_KEY;
 
+// Debug logging to check if environment variables are loaded
+console.log('🔧 Server Environment Check:');
+console.log('  - API_BASE_URL:', API_BASE_URL);
+console.log('  - API_KEY exists:', !!API_KEY);
+console.log('  - API_KEY length:', API_KEY ? API_KEY.length : 0);
+
 /**
  * This is a "catch-all" API route. It will handle all GET requests to /api/1inch/*
  * and securely proxy them to the official 1inch API.
