@@ -9,7 +9,7 @@ const BATCH_SIZE = 5;
 // This ensures we stay under the RPS limit.
 const DELAY_BETWEEN_BATCHES_MS = 1000;
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_1INCH_API_URL || 'https://api.1inch.dev';
+const API_BASE_URL = process.env.NEXT_PUBLIC_1INCH_API_URL || 'https://1inch-vercel-proxy-gamma.vercel.app';
 const API_KEY = process.env.NEXT_PUBLIC_1INCH_API_KEY;
 
 class OneInchAPI {
@@ -23,15 +23,21 @@ class OneInchAPI {
 
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
     try {
-      console.log('🚀 Calling 1inch API via proxy:', 'https://api.1inch.dev/balance/v1.2/1/balances/');
-
-      // The API key is NO LONGER sent from the client.
-      const response = await axios.get('https://api.1inch.dev/balance/v1.2/1/balances/', {
+      const url = `${this.baseURL}${endpoint}`;
+      console.log('🚀 Calling 1inch API via proxy:', url);
+      
+      // Convert params object to readable string for logging
+      const paramsString = Object.entries(params)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('&');
+      console.log('🚀 Params:', paramsString || 'No parameters');
+      
+      const response = await axios.get(url, {
         headers: {
           'Accept': 'application/json',
           'Authorization': `Bearer ${this.apiKey}`
         },
-        params: params, // ✅ Correct: Only business logic params are sent.
+        params: params,
       });
       
       return response.data;
