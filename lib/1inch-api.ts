@@ -9,7 +9,7 @@ const BATCH_SIZE = 5;
 // This ensures we stay under the RPS limit.
 const DELAY_BETWEEN_BATCHES_MS = 1000;
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_1INCH_API_URL || 'https://1inch-vercel-proxy-gamma.vercel.app';
+const API_BASE_URL = process.env.NEXT_PUBLIC_1INCH_API_URL || 'https://api.1inch.dev';
 const API_KEY = process.env.NEXT_PUBLIC_1INCH_API_KEY;
 
 class OneInchAPI {
@@ -24,7 +24,7 @@ class OneInchAPI {
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      console.log('🚀 Calling 1inch API via proxy:', url);
+      console.log('🚀 Calling 1inch API directly:', url);
       
       // Convert params object to readable string for logging
       const paramsString = Object.entries(params)
@@ -42,7 +42,7 @@ class OneInchAPI {
       
       return response.data;
     } catch (error: any) {
-      console.error('❌ API request via proxy failed:', error.response?.data || error.message);
+      console.error('❌ API request failed:', error.response?.data || error.message);
       console.error('🔍 Error Details:', {
         status: error.response?.status,
         url: error.config?.url,
