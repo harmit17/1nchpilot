@@ -58,8 +58,35 @@ const optimism = {
   },
 } as const;
 
+// Local Anvil network configuration
+const anvil = {
+  ...mainnet,
+  id: 1,
+  name: 'Anvil Local',
+  network: 'anvil',
+  nativeCurrency: {
+    name: 'Ether',
+    symbol: 'ETH',
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ['http://localhost:8545'],
+    },
+    public: {
+      http: ['http://localhost:8545'],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: 'Local Explorer',
+      url: 'http://localhost:8545',
+    },
+  },
+} as const;
+
 const { chains, publicClient, webSocketPublicClient } = configureChains(
-  [mainnet, arbitrum, optimism],
+  [mainnet, arbitrum, optimism, anvil],
   [
     alchemyProvider({ 
       apiKey: process.env.NEXT_PUBLIC_ALCHEMY_ARBITRUM_API_KEY || ''

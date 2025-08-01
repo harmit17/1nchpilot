@@ -231,6 +231,17 @@ export const SUPPORTED_CHAINS: Chain[] = [
       decimals: 18,
     },
   },
+  {
+    id: 1, // Anvil Local (same chain ID as mainnet but local)
+    name: 'Anvil Local',
+    rpcUrl: 'http://localhost:8545',
+    blockExplorer: 'http://localhost:8545',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18,
+    },
+  },
 ];
 
 export const DEFAULT_STRATEGY_TEMPLATES = [
