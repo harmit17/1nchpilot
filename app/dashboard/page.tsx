@@ -39,6 +39,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (mounted && isConnected && address && chain) {
+      console.log(`🔄 Wallet changed: ${address} on chain ${chain.id} (${chain.name})`);
       loadPortfolio();
     }
   }, [mounted, isConnected, address, chain]);
@@ -102,6 +103,14 @@ export default function DashboardPage() {
                   <span>Network:</span>
                   <span className="font-semibold text-gray-900">
                     {chain.name} ({chain.id})
+                  </span>
+                </div>
+              )}
+              {address && (
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <span>Wallet:</span>
+                  <span className="font-mono text-xs text-gray-900">
+                    {address.slice(0, 6)}...{address.slice(-4)}
                   </span>
                 </div>
               )}

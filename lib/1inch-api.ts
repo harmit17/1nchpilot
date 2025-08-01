@@ -24,13 +24,19 @@ class OneInchAPI {
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
     try {
       const url = `${this.baseURL}${endpoint}`;
+      console.log('🚀 Endpoint:', endpoint);
       console.log('🚀 Calling 1inch API via proxy:', url);
       
       // Convert params object to readable string for logging
       const paramsString = Object.entries(params)
         .map(([key, value]) => `${key}=${value}`)
         .join('&');
-      console.log('🚀 Params:', paramsString || 'No parameters');
+      
+      if (paramsString) {
+        console.log('🚀 Query Parameters:', paramsString);
+      } else {
+        console.log('🚀 Query Parameters: None (using path parameters only)');
+      }
       
       const response = await axios.get(url, {
         headers: {
@@ -39,7 +45,7 @@ class OneInchAPI {
         },
         params: params,
       });
-      
+      console.log('🚀 Response received successfully');
       return response.data;
     } catch (error: any) {
       console.error('❌ API request via proxy failed:', error.response?.data || error.message);
@@ -79,7 +85,31 @@ class OneInchAPI {
   async getWalletBalances(chainId: number, address: string): Promise<any> {
     try {
       console.log(`💰 Fetching wallet balances for chain ${chainId} and address ${address}`);
-      return await this.makeRequest(`/balance/v1.2/${chainId}/balances/${address}`);
+      
+      // Create the endpoint with path parameters
+      const endpoint = `/balance/v1.2/${chainId}/balances/${address}`;
+      
+      // Log the parameters that are part of the URL path
+      console.log(`🚀 Path Parameters: chainId=${chainId}, address=${address}`);
+      
+      const response = await this.makeRequest(endpoint);
+      
+      if (response && typeof response === 'object') {
+        const tokenCount = Object.keys(response).length;
+        const nonZeroCount = Object.values(response).filter(balance => 
+          balance !== '0' && balance !== '0.0' && parseFloat(balance as string) > 0
+        ).length;
+        
+        console.log(`📊 API Response: ${tokenCount} total tokens, ${nonZeroCount} with non-zero balances`);
+        
+        // Log first few tokens for debugging
+        const firstTokens = Object.entries(response).slice(0, 3);
+        firstTokens.forEach(([address, balance]) => {
+          console.log(`   ${address}: ${balance}`);
+        });
+      }
+      
+      return response;
     } catch (error) {
       console.error('❌ Error fetching wallet balances:', error);
       return {}; // Return an empty object on failure as per original structure
@@ -124,24 +154,40 @@ class OneInchAPI {
   }
 
   /**
-   * REWRITTEN METHOD: Get portfolio data with rate-limiting for token metadata.
+   * OPTIMIZED METHOD: Get portfolio data using the 1inch balance API response format.
    */
   async getPortfolioData(chainId: number, address: string): Promise<Portfolio> {
     try {
       console.log(`📊 Fetching portfolio data for chain ${chainId} and address ${address}`);
       
+      // Get balances from the API
       const balancesResponse = await this.getWalletBalances(chainId, address);
-      const balances = balancesResponse ? Object.entries(balancesResponse).map(([address, balance]) => ({ address, balance: balance as string })) : [];
       
-      console.log(`🔍 Found ${balances.length} token balances`);
+      if (!balancesResponse || typeof balancesResponse !== 'object') {
+        console.log('❌ No balance data received from API');
+        return { totalValueUSD: 0, tokens: [], lastUpdated: new Date() };
+      }
+      
+      // Convert the response object to array of tokens with non-zero balances
+      const balances = Object.entries(balancesResponse)
+        .filter(([_, balance]) => balance !== '0' && balance !== '0.0' && parseFloat(balance as string) > 0)
+        .map(([tokenAddress, balance]) => ({ 
+          address: tokenAddress, 
+          balance: balance as string 
+        }));
+      
+      console.log(`🔍 Found ${balances.length} tokens with non-zero balances out of ${Object.keys(balancesResponse).length} total tokens`);
       
       if (balances.length === 0) {
+        console.log('💰 No tokens with balances found');
         return { totalValueUSD: 0, tokens: [], lastUpdated: new Date() };
       }
       
       const tokenAddresses = balances.map(token => token.address);
+      console.log(`💎 Token addresses with balances: ${tokenAddresses.slice(0, 5).join(', ')}${tokenAddresses.length > 5 ? '...' : ''}`);
       
       // Fetch prices for all tokens in a single efficient call
+      console.log(`💲 Fetching price feeds for ${tokenAddresses.length} tokens...`);
       const prices = await this.getPriceFeeds(chainId, tokenAddresses) || {};
       
       // Fetch token metadata in controlled batches to avoid rate limiting
@@ -161,10 +207,10 @@ class OneInchAPI {
           const metadata = metadataResult.value;
           const token: Token = {
             address: balance.address,
-            symbol: metadata.symbol,
-            name: metadata.name,
-            decimals: metadata.decimals,
-            logoURI: metadata.logoURI,
+            symbol: metadata.symbol || 'UNKNOWN',
+            name: metadata.name || 'Unknown Token',
+            decimals: metadata.decimals || 18,
+            logoURI: metadata.logoURI || '',
             chainId,
           };
 
@@ -179,11 +225,13 @@ class OneInchAPI {
             percentage: 0, 
           });
 
+          console.log(`✅ Processed ${token.symbol}: ${balanceInUnits.toFixed(4)} tokens = $${balanceUSD.toFixed(2)}`);
+
         } else {
             if (metadataResult.status === 'rejected') {
                 console.log(`❌ Skipped token ${balance.address} - Metadata fetch failed:`, (metadataResult.reason as Error).message);
             } else {
-                console.log(`❌ Skipped token ${balance.address} - Missing price.`);
+                console.log(`❌ Skipped token ${balance.address} - Missing price data`);
             }
         }
       });
@@ -195,7 +243,7 @@ class OneInchAPI {
         });
       }
 
-      // Sort tokens by value
+      // Sort tokens by value (highest first)
       tokens.sort((a, b) => b.balanceUSD - a.balanceUSD);
 
       const portfolio = {
@@ -204,7 +252,11 @@ class OneInchAPI {
         lastUpdated: new Date(),
       };
       
-      console.log(`🎉 Portfolio data complete. Total Value: $${totalValueUSD.toFixed(2)}`);
+      console.log(`🎉 Portfolio data complete!`);
+      console.log(`💰 Total Value: $${totalValueUSD.toFixed(2)}`);
+      console.log(`🪙 Token Count: ${tokens.length}`);
+      console.log(`📊 Top tokens: ${tokens.slice(0, 3).map(t => `${t.token.symbol}: $${t.balanceUSD.toFixed(2)}`).join(', ')}`);
+      
       return portfolio;
     } catch (error) {
       console.error('❌ A critical error occurred while fetching portfolio data:', error);
