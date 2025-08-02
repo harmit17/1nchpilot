@@ -8,6 +8,9 @@ export interface Token {
   chainId: number;
 }
 
+// Re-export analytics types
+export * from './analytics';
+
 export interface TokenBalance {
   token: Token;
   balance: string;

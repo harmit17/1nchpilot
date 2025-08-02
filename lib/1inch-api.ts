@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Token, TokenBalance, Portfolio, OneInchQuote, OneInchOrder, OneInchOrderStatus } from '@/types';
+import { Token, TokenBalance, Portfolio, OneInchQuote, OneInchOrder, OneInchOrderStatus, TransactionHistory, PortfolioMetrics } from '@/types';
 
 // --- Configuration for Rate Limiting ---
 // The number of requests to send in a single parallel batch.
@@ -94,6 +94,8 @@ class OneInchAPI {
       
       const response = await this.makeRequest(endpoint);
       
+      console.log('🔍 RAW API Response:', JSON.stringify(response, null, 2));
+      
       if (response && typeof response === 'object') {
         const tokenCount = Object.keys(response).length;
         const nonZeroCount = Object.values(response).filter(balance => 
@@ -103,10 +105,18 @@ class OneInchAPI {
         console.log(`📊 API Response: ${tokenCount} total tokens, ${nonZeroCount} with non-zero balances`);
         
         // Log first few tokens for debugging
-        const firstTokens = Object.entries(response).slice(0, 3);
+        const firstTokens = Object.entries(response).slice(0, 5);
         firstTokens.forEach(([address, balance]) => {
-          console.log(`   ${address}: ${balance}`);
+          console.log(`   Token ${address}: ${balance}`);
         });
+        
+        // Log all non-zero balances for debugging
+        const nonZeroTokens = Object.entries(response).filter(([_, balance]) => 
+          balance !== '0' && balance !== '0.0' && parseFloat(balance as string) > 0
+        );
+        console.log('🪙 Non-zero tokens:', nonZeroTokens);
+      } else {
+        console.log('❌ Invalid or empty response from balance API');
       }
       
       return response;
@@ -120,16 +130,18 @@ class OneInchAPI {
   async getTokenData(chainId: number, tokenAddress: string): Promise<any> {
     // This function will now be called by the batch processor.
     // Errors will be caught by Promise.allSettled.
-    return this.makeRequest(`/token/v1.2/${chainId}/tokens/${tokenAddress}`);
+    return this.makeRequest(`/token/v1.2/${chainId}/custom/${tokenAddress}`);
   }
 
   // Get price feeds
   async getPriceFeeds(chainId: number, tokens: string[]): Promise<any> {
     try {
       console.log(`💲 Fetching price feeds for ${tokens.length} tokens...`);
-      return await this.makeRequest(`/price/v1.2/${chainId}/prices`, {
+      const response = await this.makeRequest(`/price/v1.2/${chainId}/prices`, {
         tokens: tokens.join(','),
       });
+      console.log('💰 Price API Raw Response:', JSON.stringify(response, null, 2));
+      return response;
     } catch (error) {
       console.error('❌ Error fetching price feeds:', error);
       return {};
@@ -154,87 +166,100 @@ class OneInchAPI {
   }
 
   /**
-   * OPTIMIZED METHOD: Get portfolio data using the 1inch balance API response format.
+   * OPTIMIZED METHOD: Get portfolio data using the 1inch Portfolio API v4.
    */
   async getPortfolioData(chainId: number, address: string): Promise<Portfolio> {
     try {
       console.log(`📊 Fetching portfolio data for chain ${chainId} and address ${address}`);
       
-      // Get balances from the API
-      const balancesResponse = await this.getWalletBalances(chainId, address);
+      // First, get portfolio details using Portfolio API v4
+      const portfolioDetails = await this.getPortfolioDetails(chainId, address);
+      console.log('📊 Portfolio details received:', portfolioDetails);
       
-      if (!balancesResponse || typeof balancesResponse !== 'object') {
-        console.log('❌ No balance data received from API');
+      if (!portfolioDetails || portfolioDetails.length === 0) {
+        console.log('❌ No portfolio details received from Portfolio API');
         return { totalValueUSD: 0, tokens: [], lastUpdated: new Date() };
       }
       
-      // Convert the response object to array of tokens with non-zero balances
-      const balances = Object.entries(balancesResponse)
-        .filter(([_, balance]) => balance !== '0' && balance !== '0.0' && parseFloat(balance as string) > 0)
-        .map(([tokenAddress, balance]) => ({ 
-          address: tokenAddress, 
-          balance: balance as string 
-        }));
+      // Extract tokens with non-zero balances
+      const tokensWithBalance = portfolioDetails.filter((token: any) => 
+        token.amount > 0 || (token.amount_wei && parseFloat(token.amount_wei) > 0)
+      );
       
-      console.log(`🔍 Found ${balances.length} tokens with non-zero balances out of ${Object.keys(balancesResponse).length} total tokens`);
+      console.log(`🔍 Found ${tokensWithBalance.length} tokens with non-zero balances`);
       
-      if (balances.length === 0) {
+      if (tokensWithBalance.length === 0) {
         console.log('💰 No tokens with balances found');
         return { totalValueUSD: 0, tokens: [], lastUpdated: new Date() };
       }
       
-      const tokenAddresses = balances.map(token => token.address);
-      console.log(`💎 Token addresses with balances: ${tokenAddresses.slice(0, 5).join(', ')}${tokenAddresses.length > 5 ? '...' : ''}`);
-      
-      // Fetch prices for all tokens in a single efficient call
-      console.log(`💲 Fetching price feeds for ${tokenAddresses.length} tokens...`);
-      const prices = await this.getPriceFeeds(chainId, tokenAddresses) || {};
-      
-      // Fetch token metadata in controlled batches to avoid rate limiting
-      console.log(`🪙 Fetching metadata for ${tokenAddresses.length} tokens in batches...`);
-      const metadataResults = await this._processInBatches(tokenAddresses, (tokenAddress) => this.getTokenData(chainId, tokenAddress));
-
-      // Process and combine data
-      const tokens: TokenBalance[] = [];
+      // Calculate total value from portfolio details
       let totalValueUSD = 0;
-
-      balances.forEach((balance, index) => {
-        const metadataResult = metadataResults[index];
-        const price = prices[balance.address];
-
-        // Check if the metadata request was successful and we have a price
-        if (metadataResult.status === 'fulfilled' && metadataResult.value && price) {
-          const metadata = metadataResult.value;
+      const tokens: TokenBalance[] = [];
+      
+      // Process tokens from portfolio details
+      for (const portfolioToken of tokensWithBalance) {
+        try {
+          console.log(`🔍 Processing portfolio token:`, portfolioToken);
+          
+          // Extract token information from portfolio API
+          const tokenAddress = portfolioToken.contract_address || portfolioToken.address;
+          const tokenAmount = portfolioToken.amount || 0;
+          const tokenValueUSD = portfolioToken.value_usd || 0;
+          const tokenSymbol = portfolioToken.symbol || 'UNKNOWN';
+          const tokenName = portfolioToken.name || 'Unknown Token';
+          const tokenDecimals = portfolioToken.decimals || 18;
+          
+          // Only fetch additional metadata if we don't have enough info
+          let tokenMetadata = {
+            symbol: tokenSymbol,
+            name: tokenName,
+            decimals: tokenDecimals,
+            logoURI: portfolioToken.logo_url || ''
+          };
+          
+          // If we're missing critical data, fetch from token API
+          if (!tokenSymbol || tokenSymbol === 'UNKNOWN') {
+            try {
+              console.log(`🪙 Fetching additional metadata for ${tokenAddress}`);
+              const metadata = await this.getTokenData(chainId, tokenAddress);
+              if (metadata) {
+                tokenMetadata = {
+                  symbol: metadata.symbol || tokenSymbol,
+                  name: metadata.name || tokenName,
+                  decimals: metadata.decimals || tokenDecimals,
+                  logoURI: metadata.logoURI || portfolioToken.logo_url || ''
+                };
+              }
+            } catch (error) {
+              console.log(`❌ Failed to fetch metadata for ${tokenAddress}:`, error);
+            }
+          }
+          
           const token: Token = {
-            address: balance.address,
-            symbol: metadata.symbol || 'UNKNOWN',
-            name: metadata.name || 'Unknown Token',
-            decimals: metadata.decimals || 18,
-            logoURI: metadata.logoURI || '',
+            address: tokenAddress,
+            symbol: tokenMetadata.symbol,
+            name: tokenMetadata.name,
+            decimals: tokenMetadata.decimals,
+            logoURI: tokenMetadata.logoURI,
             chainId,
           };
 
-          const balanceInUnits = parseFloat(balance.balance) / (10 ** token.decimals);
-          const balanceUSD = balanceInUnits * price;
-          totalValueUSD += balanceUSD;
+          totalValueUSD += tokenValueUSD;
 
           tokens.push({
             token,
-            balance: balance.balance, // Keep raw balance
-            balanceUSD,
-            percentage: 0, 
+            balance: portfolioToken.amount_wei || tokenAmount.toString(),
+            balanceUSD: tokenValueUSD,
+            percentage: 0, // Will be calculated later
           });
 
-          console.log(`✅ Processed ${token.symbol}: ${balanceInUnits.toFixed(4)} tokens = $${balanceUSD.toFixed(2)}`);
+          console.log(`✅ Processed ${token.symbol}: ${tokenAmount} tokens = $${tokenValueUSD.toFixed(2)}`);
 
-        } else {
-            if (metadataResult.status === 'rejected') {
-                console.log(`❌ Skipped token ${balance.address} - Metadata fetch failed:`, (metadataResult.reason as Error).message);
-            } else {
-                console.log(`❌ Skipped token ${balance.address} - Missing price data`);
-            }
+        } catch (error) {
+          console.error(`❌ Error processing token:`, error);
         }
-      });
+      }
 
       // Calculate percentages
       if (totalValueUSD > 0) {
@@ -269,20 +294,24 @@ class OneInchAPI {
    */
   async getPortfolioDetails(chainId: number, address: string): Promise<any> {
     try {
+      console.log(`📊 Fetching portfolio details for ${address} on chain ${chainId}`);
       const endpoint = `/portfolio/portfolio/v4/overview/erc20/details`;
       const params = {
         addresses: address,
         chain_id: chainId
       };
       const response = await this.makeRequest(endpoint, params);
+      console.log('📊 Portfolio Details Raw Response:', JSON.stringify(response, null, 2));
+      
       if (
         response &&
         typeof response === 'object' &&
         'result' in response &&
         Array.isArray((response as any).result)
       ) {
-        // Only return tokens with amount > 0
-        return (response as any).result.filter((token: any) => token.amount > 0);
+        const filteredResult = (response as any).result.filter((token: any) => token.amount > 0);
+        console.log('🎯 Filtered portfolio details (amount > 0):', filteredResult);
+        return filteredResult;
       }
       return [];
     } catch (error) {
@@ -292,22 +321,64 @@ class OneInchAPI {
   }
 
   /**
-   * Fetch portfolio profit and loss data from 1inch API
+   * Fetch current value of ERC20 tokens using Portfolio API v4
    */
-  async getPortfolioProfitLoss(chainId: number, address: string): Promise<any> {
+  async getPortfolioCurrentValue(chainId: number, address: string): Promise<any> {
     try {
-      const endpoint = `/portfolio/portfolio/v4/overview/erc20/profit_and_loss`;
+      console.log(`💰 Fetching current value for ${address} on chain ${chainId}`);
+      const endpoint = `/portfolio/portfolio/v4/overview/erc20/current_value`;
       const params = {
         addresses: address,
         chain_id: chainId
       };
       const response = await this.makeRequest(endpoint, params);
+      console.log('💰 Current Value Raw Response:', JSON.stringify(response, null, 2));
+      
+      if (
+        response &&
+        typeof response === 'object' &&
+        'result' in response
+      ) {
+        console.log('✅ Current value result:', (response as any).result);
+        return (response as any).result;
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Error fetching portfolio current value:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch portfolio profit and loss data from 1inch API
+   */
+  async getPortfolioProfitLoss(chainId: number, address: string, fromTimestamp?: number, toTimestamp?: number): Promise<any> {
+    try {
+      console.log(`📈 Fetching profit/loss for ${address} on chain ${chainId}`);
+      const endpoint = `/portfolio/portfolio/v4/overview/erc20/profit_and_loss`;
+      const params: any = {
+        addresses: address,
+        chain_id: chainId
+      };
+      
+      // Add optional time range parameters
+      if (fromTimestamp) {
+        params.from_timestamp = fromTimestamp;
+      }
+      if (toTimestamp) {
+        params.to_timestamp = toTimestamp;
+      }
+      
+      const response = await this.makeRequest(endpoint, params);
+      console.log('📈 Profit/Loss Raw Response:', JSON.stringify(response, null, 2));
+      
       if (
         response &&
         typeof response === 'object' &&
         'result' in response &&
         Array.isArray((response as any).result)
       ) {
+        console.log('📊 Profit/Loss result:', (response as any).result);
         return (response as any).result;
       }
       return [];
@@ -322,12 +393,287 @@ class OneInchAPI {
    */
   async getTokenMetadata(chainId: number, tokenAddress: string): Promise<any> {
     try {
-      const endpoint = `/token/v1.1/${chainId}/${tokenAddress}`;
+      const endpoint = `/token/v1.2/${chainId}/custom/${tokenAddress}`;
       const response = await this.makeRequest(endpoint, {});
       return response;
     } catch (error) {
       console.error('❌ Error fetching token metadata:', error);
       return null;
+    }
+  }
+
+  /**
+   * Fetch transaction history from 1inch History API
+   */
+  async getTransactionHistory(chainId: number, address: string, limit: number = 100): Promise<TransactionHistory[]> {
+    try {
+      console.log(`📜 Fetching transaction history for address ${address} on chain ${chainId}`);
+      const endpoint = `/history/v2.0/history/${address}/events`;
+      const params = {
+        chainId: chainId,
+        limit: limit
+      };
+      const response = await this.makeRequest(endpoint, params);
+      
+      if (response && typeof response === 'object' && 'items' in response && Array.isArray((response as any).items)) {
+        return (response as any).items.map((tx: any) => ({
+          hash: tx.txHash,
+          timestamp: tx.timeMs,
+          blockNumber: tx.blockNumber,
+          from: tx.details?.fromAddress || address,
+          to: tx.details?.toAddress || '',
+          value: tx.details?.amount || '0',
+          token: {
+            address: tx.details?.tokenAddress || '',
+            symbol: tx.details?.tokenSymbol || '',
+            name: tx.details?.tokenName || '',
+            decimals: tx.details?.tokenDecimals || 18
+          },
+          type: this.mapTransactionType(tx.type),
+          usdValue: tx.details?.usdAmount || 0,
+          gasUsed: tx.gasUsed || '0',
+          gasPriceGwei: tx.gasPrice || '0'
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Error fetching transaction history:', error);
+      return [];
+    }
+  }
+
+  private mapTransactionType(type: string): TransactionHistory['type'] {
+    switch (type?.toLowerCase()) {
+      case 'swap':
+      case 'trade':
+        return 'SWAP';
+      case 'transfer':
+        return 'TRANSFER';
+      case 'stake':
+        return 'STAKE';
+      case 'unstake':
+        return 'UNSTAKE';
+      case 'liquidity_add':
+      case 'add_liquidity':
+        return 'LIQUIDITY_ADD';
+      case 'liquidity_remove':
+      case 'remove_liquidity':
+        return 'LIQUIDITY_REMOVE';
+      default:
+        return 'TRANSFER';
+    }
+  }
+
+  /**
+   * Calculate comprehensive portfolio metrics
+   */
+  async getPortfolioMetrics(chainId: number, address: string): Promise<PortfolioMetrics> {
+    try {
+      console.log(`📊 Calculating portfolio metrics for ${address}`);
+      
+      const [portfolio, profitLoss, transactions] = await Promise.all([
+        this.getPortfolioData(chainId, address),
+        this.getPortfolioProfitLoss(chainId, address),
+        this.getTransactionHistory(chainId, address, 500)
+      ]);
+
+      // Calculate basic metrics
+      const totalValue = portfolio.totalValueUSD;
+      const tokenCount = portfolio.tokens.length;
+      
+      // Calculate P&L from API data
+      let totalProfit = 0;
+      let totalLoss = 0;
+      
+      profitLoss.forEach((item: any) => {
+        if (item.profit > 0) totalProfit += item.profit;
+        if (item.profit < 0) totalLoss += Math.abs(item.profit);
+      });
+
+      const netPnL = totalProfit - totalLoss;
+      const netPnLPercent = totalValue > 0 ? (netPnL / (totalValue - netPnL)) * 100 : 0;
+
+      // Calculate time-based metrics from transaction history
+      const now = Date.now();
+      const dayAgo = now - (24 * 60 * 60 * 1000);
+      
+      // Estimate 24h change (simplified calculation)
+      const totalValueChange24h = netPnL * 0.1; // Rough estimate
+      const totalValueChangePercent24h = totalValue > 0 ? (totalValueChange24h / totalValue) * 100 : 0;
+
+      // Calculate other metrics (simplified for demo)
+      const avgDailyReturn = netPnLPercent / 30; // Rough 30-day average
+      const sharpeRatio = avgDailyReturn / Math.max(Math.abs(avgDailyReturn) * 0.5, 1); // Simplified
+      const maxDrawdown = Math.min(netPnLPercent, -5); // Simplified
+      const volatility = Math.abs(totalValueChangePercent24h) * 7; // Simplified weekly volatility
+
+      return {
+        totalValue,
+        totalValueChange24h,
+        totalValueChangePercent24h,
+        tokenCount,
+        totalProfit,
+        totalLoss,
+        netPnL,
+        netPnLPercent,
+        avgDailyReturn,
+        sharpeRatio,
+        maxDrawdown,
+        volatility
+      };
+    } catch (error) {
+      console.error('❌ Error calculating portfolio metrics:', error);
+      // Return default metrics on error
+      return {
+        totalValue: 0,
+        totalValueChange24h: 0,
+        totalValueChangePercent24h: 0,
+        tokenCount: 0,
+        totalProfit: 0,
+        totalLoss: 0,
+        netPnL: 0,
+        netPnLPercent: 0,
+        avgDailyReturn: 0,
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+        volatility: 0
+      };
+    }
+  }
+
+  /**
+   * Get comprehensive portfolio analytics including all data needed for AI analysis
+   */
+  async getComprehensivePortfolioData(chainId: number, address: string) {
+    try {
+      console.log(`🔍 Fetching comprehensive portfolio data for ${address}`);
+      
+      // Calculate time range for profit/loss (last 30 days)
+      const toTimestamp = Math.floor(Date.now() / 1000);
+      const fromTimestamp = toTimestamp - (30 * 24 * 60 * 60); // 30 days ago
+      
+      const [portfolio, currentValue, transactions, profitLoss] = await Promise.all([
+        this.getPortfolioData(chainId, address),
+        this.getPortfolioCurrentValue(chainId, address),
+        this.getTransactionHistory(chainId, address, 1000),
+        this.getPortfolioProfitLoss(chainId, address, fromTimestamp, toTimestamp)
+      ]);
+
+      // Calculate enhanced metrics using Portfolio API data
+      const metrics = await this.calculatePortfolioMetricsFromAPI(currentValue, profitLoss, portfolio);
+
+      return {
+        portfolio,
+        metrics,
+        transactions,
+        profitLoss,
+        currentValue,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('❌ Error fetching comprehensive portfolio data:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate portfolio metrics using Portfolio API v4 data
+   */
+  private async calculatePortfolioMetricsFromAPI(currentValue: any, profitLoss: any[], portfolio: any): Promise<PortfolioMetrics> {
+    try {
+      console.log('📊 Calculating metrics from Portfolio API v4 data...');
+      console.log('💰 Current Value Data:', currentValue);
+      console.log('📈 Profit/Loss Data:', profitLoss);
+      
+      // Extract metrics from Portfolio API v4 responses
+      const totalValue = currentValue?.abs_portfolio_usd || portfolio.totalValueUSD || 0;
+      const tokenCount = portfolio.tokens?.length || 0;
+      
+      console.log(`💰 Total Portfolio Value: $${totalValue}`);
+      console.log(`🪙 Token Count: ${tokenCount}`);
+      
+      // Calculate P&L from API data
+      let totalProfit = 0;
+      let totalLoss = 0;
+      let netPnL = 0;
+      let roi = 0;
+      
+      if (Array.isArray(profitLoss) && profitLoss.length > 0) {
+        console.log('📈 Processing profit/loss data...');
+        
+        // Use the portfolio-level data if available
+        const portfolioData = profitLoss[0] || {};
+        
+        // Extract ROI and absolute profit
+        roi = portfolioData.roi || 0;
+        const absoluteProfit = portfolioData.abs_profit_usd || 0;
+        
+        console.log(`📊 ROI: ${roi}%`);
+        console.log(`💵 Absolute Profit: $${absoluteProfit}`);
+        
+        netPnL = absoluteProfit;
+        if (absoluteProfit > 0) {
+          totalProfit = absoluteProfit;
+        } else {
+          totalLoss = Math.abs(absoluteProfit);
+        }
+        
+        // Also process individual token P&L if available
+        profitLoss.forEach((item: any) => {
+          if (item.abs_profit_usd !== undefined) {
+            const pnl = item.abs_profit_usd;
+            if (pnl > 0) totalProfit += pnl;
+            if (pnl < 0) totalLoss += Math.abs(pnl);
+          }
+        });
+      }
+
+      const netPnLPercent = roi || 0; // Use ROI directly from API
+      
+      console.log(`📊 Final Metrics:`);
+      console.log(`   Net P&L: $${netPnL.toFixed(2)} (${netPnLPercent.toFixed(2)}%)`);
+      console.log(`   Total Profit: $${totalProfit.toFixed(2)}`);
+      console.log(`   Total Loss: $${totalLoss.toFixed(2)}`);
+
+      // Estimate other metrics (simplified calculations)
+      const totalValueChange24h = netPnL * 0.1; // Rough estimate
+      const totalValueChangePercent24h = totalValue > 0 ? (totalValueChange24h / totalValue) * 100 : 0;
+      const avgDailyReturn = netPnLPercent / 30; // Rough 30-day average
+      const sharpeRatio = avgDailyReturn / Math.max(Math.abs(avgDailyReturn) * 0.5, 1); // Simplified
+      const maxDrawdown = Math.min(netPnLPercent, -5); // Simplified
+      const volatility = Math.abs(totalValueChangePercent24h) * 7; // Simplified weekly volatility
+
+      return {
+        totalValue,
+        totalValueChange24h,
+        totalValueChangePercent24h,
+        tokenCount,
+        totalProfit,
+        totalLoss,
+        netPnL,
+        netPnLPercent,
+        avgDailyReturn,
+        sharpeRatio,
+        maxDrawdown,
+        volatility
+      };
+    } catch (error) {
+      console.error('❌ Error calculating portfolio metrics from API:', error);
+      // Return default metrics on error
+      return {
+        totalValue: 0,
+        totalValueChange24h: 0,
+        totalValueChangePercent24h: 0,
+        tokenCount: 0,
+        totalProfit: 0,
+        totalLoss: 0,
+        netPnL: 0,
+        netPnLPercent: 0,
+        avgDailyReturn: 0,
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+        volatility: 0
+      };
     }
   }
 }

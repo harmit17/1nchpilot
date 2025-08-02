@@ -10,6 +10,7 @@ import PortfolioChart from '@/components/PortfolioChart';
 import TokenList from '@/components/TokenList';
 import RebalancingPanel from '@/components/RebalancingPanel';
 import StrategySelector from '@/components/StrategySelector';
+import PortfolioAnalytics from '@/components/PortfolioAnalytics';
 import { Portfolio } from '@/types';
 import { oneInchAPI } from '@/lib/1inch-api';
 import { formatCurrency } from '@/utils';
@@ -27,6 +28,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [showRebalancing, setShowRebalancing] = useState(false);
   const [showStrategySelector, setShowStrategySelector] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -199,12 +201,15 @@ export default function DashboardPage() {
                 onClick={() => setShowRebalancing(true)}
                 className="btn btn-secondary btn-lg flex-1"
               >
-                <TrendingUp className="w-5 h-5 mr-2" />
+                <Settings className="w-5 h-5 mr-2" />
                 Rebalance Portfolio
               </button>
-              <button className="btn btn-outline btn-lg">
-                <Settings className="w-5 h-5 mr-2" />
-                Settings
+              <button
+                onClick={() => setShowAnalytics(true)}
+                className="btn btn-outline btn-lg flex-1"
+              >
+                <TrendingUpIcon className="w-5 h-5 mr-2" />
+                Generate Analytics Report
               </button>
             </motion.div>
 
@@ -221,82 +226,84 @@ export default function DashboardPage() {
               </div>
               
               {tokens.length > 0 ? (
-                <div className="space-y-4">
-                  {tokens.map((token: any) => {
-                    const metadata = tokenMetadata[token.contract_address];
-                    return (
-                      <div key={token.contract_address} className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                                {metadata?.logoURI ? (
-                                  <img 
-                                    src={metadata.logoURI} 
-                                    alt={token.symbol}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      // Hide the image and show a fallback icon
-                                      e.currentTarget.style.display = 'none';
-                                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                    }}
-                                  />
-                                ) : null}
-                                {/* Fallback icon when image fails to load or is not available */}
-                                <div className={`w-full h-full flex items-center justify-center text-gray-500 text-xs font-bold ${metadata?.logoURI ? 'hidden' : ''}`}>
-                                  {token.symbol?.slice(0, 2).toUpperCase() || '??'}
+                <div className="max-h-96 overflow-y-auto">
+                  <div className="space-y-4 pr-2">
+                    {tokens.map((token: any) => {
+                      const metadata = tokenMetadata[token.contract_address];
+                      return (
+                        <div key={token.contract_address} className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                                  {metadata?.logoURI ? (
+                                    <img 
+                                      src={metadata.logoURI} 
+                                      alt={token.symbol}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        // Hide the image and show a fallback icon
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                      }}
+                                    />
+                                  ) : null}
+                                  {/* Fallback icon when image fails to load or is not available */}
+                                  <div className={`w-full h-full flex items-center justify-center text-gray-500 text-xs font-bold ${metadata?.logoURI ? 'hidden' : ''}`}>
+                                    {token.symbol?.slice(0, 2).toUpperCase() || '??'}
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2">
-                                  <h3 className="font-semibold text-gray-900">{token.symbol}</h3>
-                                  <span className="text-sm text-gray-500">({token.name})</span>
-                                </div>
-                                <p className="text-sm font-mono text-gray-600 truncate">
-                                  {token.contract_address.slice(0, 8)}...{token.contract_address.slice(-6)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right space-y-1">
-                            <div className="flex items-center justify-end space-x-2">
-                              <span className="text-lg font-semibold text-gray-900">
-                                {token.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })}
-                              </span>
-                              <span className="text-sm text-gray-500">{token.symbol}</span>
-                            </div>
-                            <div className="flex items-center justify-end space-x-4">
-                              <div className="text-right">
-                                <p className="text-sm font-medium text-gray-900">
-                                  {formatCurrency(token.value_usd)}
-                                </p>
-                                <p className="text-xs text-gray-500">USD Value</p>
-                              </div>
-                              <div className="text-right">
-                                <p className={`text-sm font-medium ${token.abs_profit_usd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {token.abs_profit_usd >= 0 ? '+' : ''}{formatCurrency(token.abs_profit_usd)}
-                                </p>
-                                <p className="text-xs text-gray-500">Profit/Loss</p>
-                              </div>
-                              <div className="text-right">
-                                <div className="flex items-center space-x-1">
-                                  {token.roi >= 0 ? (
-                                    <TrendingUpIcon className="w-3 h-3 text-green-600" />
-                                  ) : (
-                                    <TrendingDownIcon className="w-3 h-3 text-red-600" />
-                                  )}
-                                  <p className={`text-sm font-medium ${token.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {(token.roi * 100).toFixed(2)}%
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2">
+                                    <h3 className="font-semibold text-gray-900">{token.symbol}</h3>
+                                    <span className="text-sm text-gray-500">({token.name})</span>
+                                  </div>
+                                  <p className="text-sm font-mono text-gray-600 truncate">
+                                    {token.contract_address.slice(0, 8)}...{token.contract_address.slice(-6)}
                                   </p>
                                 </div>
-                                <p className="text-xs text-gray-500">ROI</p>
+                              </div>
+                            </div>
+                            <div className="text-right space-y-1">
+                              <div className="flex items-center justify-end space-x-2">
+                                <span className="text-lg font-semibold text-gray-900">
+                                  {token.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                                </span>
+                                <span className="text-sm text-gray-500">{token.symbol}</span>
+                              </div>
+                              <div className="flex items-center justify-end space-x-4">
+                                <div className="text-right">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {formatCurrency(token.value_usd)}
+                                  </p>
+                                  <p className="text-xs text-gray-500">USD Value</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className={`text-sm font-medium ${token.abs_profit_usd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {token.abs_profit_usd >= 0 ? '+' : ''}{formatCurrency(token.abs_profit_usd)}
+                                  </p>
+                                  <p className="text-xs text-gray-500">Profit/Loss</p>
+                                </div>
+                                <div className="text-right">
+                                  <div className="flex items-center space-x-1">
+                                    {token.roi >= 0 ? (
+                                      <TrendingUpIcon className="w-3 h-3 text-green-600" />
+                                    ) : (
+                                      <TrendingDownIcon className="w-3 h-3 text-red-600" />
+                                    )}
+                                    <p className={`text-sm font-medium ${token.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                      {(token.roi * 100).toFixed(2)}%
+                                    </p>
+                                  </div>
+                                  <p className="text-xs text-gray-500">ROI</p>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
@@ -343,6 +350,14 @@ export default function DashboardPage() {
             loadPortfolio();
           }}
         />
+      )}
+
+      {showAnalytics && (
+        <div className="fixed inset-0 z-50 overflow-auto bg-black bg-opacity-50">
+          <div className="relative">
+            <PortfolioAnalytics onClose={() => setShowAnalytics(false)} />
+          </div>
+        </div>
       )}
     </div>
   );
