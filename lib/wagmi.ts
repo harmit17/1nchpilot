@@ -58,12 +58,12 @@ const optimism = {
   },
 } as const;
 
-// Local Anvil network configuration
+// Local Anvil network configuration (Mainnet Fork)
 const anvil = {
   ...mainnet,
-  id: 1,
-  name: 'Anvil Local',
-  network: 'anvil',
+  id: 31337, // Anvil default chain ID
+  name: 'Anvil Fork (Mainnet)',
+  network: 'anvil-fork',
   nativeCurrency: {
     name: 'Ether',
     symbol: 'ETH',
@@ -83,6 +83,7 @@ const anvil = {
       url: 'http://localhost:8545',
     },
   },
+  testnet: true,
 } as const;
 
 const { chains, publicClient, webSocketPublicClient } = configureChains(

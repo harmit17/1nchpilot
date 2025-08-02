@@ -1,9 +1,9 @@
 'use client';
 
-import { useNetwork, useAccount } from 'wagmi';
+import { useNetwork, useAccount, useBalance } from 'wagmi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, RefreshCw, AlertTriangle, User, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, Plus, TrendingUp, Settings, Wallet } from 'lucide-react';
+import { DollarSign, RefreshCw, AlertTriangle, User, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, Plus, TrendingUp, Settings, Wallet, ArrowUpDown } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import PortfolioOverview from '@/components/PortfolioOverview';
 import PortfolioChart from '@/components/PortfolioChart';
@@ -11,6 +11,7 @@ import TokenList from '@/components/TokenList';
 import RebalancingPanel from '@/components/RebalancingPanel';
 import StrategySelector from '@/components/StrategySelector';
 import PortfolioAnalytics from '@/components/PortfolioAnalytics';
+import SwapPopup from '@/components/SwapPopup';
 import { Portfolio } from '@/types';
 import { oneInchAPI } from '@/lib/1inch-api';
 import { formatCurrency } from '@/utils';
@@ -21,6 +22,11 @@ const STATIC_ADDRESS = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 export default function DashboardPage() {
   const { chain } = useNetwork();
   const { address, isConnected } = useAccount();
+  const { data: balance, isLoading: balanceLoading, error: balanceError, refetch: refetchBalance } = useBalance({
+    address: address,
+    watch: true,
+    cacheTime: 2_000,
+  });
   const [tokens, setTokens] = useState<any[]>([]);
   const [profitLoss, setProfitLoss] = useState<any>(null);
   const [tokenMetadata, setTokenMetadata] = useState<{[key: string]: any}>({});
@@ -29,6 +35,7 @@ export default function DashboardPage() {
   const [showRebalancing, setShowRebalancing] = useState(false);
   const [showStrategySelector, setShowStrategySelector] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showSwap, setShowSwap] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -188,7 +195,7 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="flex flex-col sm:flex-row gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
             >
               <button
                 onClick={() => setShowStrategySelector(true)}
@@ -198,8 +205,15 @@ export default function DashboardPage() {
                 Create Strategy
               </button>
               <button
-                onClick={() => setShowRebalancing(true)}
+                onClick={() => setShowSwap(true)}
                 className="btn btn-secondary btn-lg flex-1"
+              >
+                <ArrowUpDown className="w-5 h-5 mr-2" />
+                Swap Tokens
+              </button>
+              <button
+                onClick={() => setShowRebalancing(true)}
+                className="btn btn-outline btn-lg flex-1"
               >
                 <Settings className="w-5 h-5 mr-2" />
                 Rebalance Portfolio
@@ -209,7 +223,7 @@ export default function DashboardPage() {
                 className="btn btn-outline btn-lg flex-1"
               >
                 <TrendingUpIcon className="w-5 h-5 mr-2" />
-                Generate Analytics Report
+                Generate Analytics
               </button>
             </motion.div>
 
@@ -358,6 +372,10 @@ export default function DashboardPage() {
             <PortfolioAnalytics onClose={() => setShowAnalytics(false)} />
           </div>
         </div>
+      )}
+
+      {showSwap && (
+        <SwapPopup onClose={() => setShowSwap(false)} />
       )}
     </div>
   );

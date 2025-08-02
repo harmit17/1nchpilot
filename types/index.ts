@@ -235,7 +235,7 @@ export const SUPPORTED_CHAINS: Chain[] = [
     },
   },
   {
-    id: 1, // Anvil Local (same chain ID as mainnet but local)
+    id: 31337, // Anvil Local (standard Anvil chain ID)
     name: 'Anvil Local',
     rpcUrl: 'http://localhost:8545',
     blockExplorer: 'http://localhost:8545',

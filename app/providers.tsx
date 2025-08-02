@@ -9,7 +9,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiConfig config={wagmiConfig}>
       <RainbowKitProvider
-        initialChain={42161} // Default to Arbitrum One
+        initialChain={31337} // Default to Anvil Local Fork
         chains={chains}
       >
         {children}
