@@ -5,14 +5,12 @@ import { WagmiConfig } from 'wagmi';
 import { wagmiConfig, chains } from '@/lib/wagmi';
 import '@rainbow-me/rainbowkit/styles.css';
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiConfig config={wagmiConfig}>
       <RainbowKitProvider
+        initialChain={42161} // Default to Arbitrum One
         chains={chains}
-        initialChain={42161}
-        showRecentTransactions={true}
-        coolMode
       >
         {children}
       </RainbowKitProvider>

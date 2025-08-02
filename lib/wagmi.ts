@@ -89,10 +89,10 @@ const { chains, publicClient, webSocketPublicClient } = configureChains(
   [mainnet, arbitrum, optimism, anvil],
   [
     alchemyProvider({ 
-      apiKey: process.env.NEXT_PUBLIC_ALCHEMY_ARBITRUM_API_KEY || ''
+      apiKey: process.env.NEXT_PUBLIC_ALCHEMY_MAINNET_API_KEY || ''
     }),
     alchemyProvider({ 
-      apiKey: process.env.NEXT_PUBLIC_ALCHEMY_MAINNET_API_KEY || ''
+      apiKey: process.env.NEXT_PUBLIC_ALCHEMY_ARBITRUM_API_KEY || ''
     }),
     publicProvider()
   ]

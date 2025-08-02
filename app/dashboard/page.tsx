@@ -1,19 +1,10 @@
 'use client';
 
-import { useNetwork } from 'wagmi';
+import { useNetwork, useAccount } from 'wagmi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  PieChart,
-  RefreshCw,
-  Settings,
-  Plus,
-  AlertTriangle,
-  User
-} from 'lucide-react';
+import { DollarSign, RefreshCw, AlertTriangle, User, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, Plus, TrendingUp, Settings, Wallet } from 'lucide-react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import PortfolioOverview from '@/components/PortfolioOverview';
 import PortfolioChart from '@/components/PortfolioChart';
 import TokenList from '@/components/TokenList';
@@ -28,7 +19,10 @@ const STATIC_ADDRESS = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 
 export default function DashboardPage() {
   const { chain } = useNetwork();
-  const [balances, setBalances] = useState<any>(null);
+  const { address, isConnected } = useAccount();
+  const [tokens, setTokens] = useState<any[]>([]);
+  const [profitLoss, setProfitLoss] = useState<any>(null);
+  const [tokenMetadata, setTokenMetadata] = useState<{[key: string]: any}>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRebalancing, setShowRebalancing] = useState(false);
@@ -41,29 +35,51 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (mounted && chain) {
-      console.log(`🔄 Loading balances for static address: ${STATIC_ADDRESS} on chain ${chain.id} (${chain.name})`);
-      loadBalances();
+      loadPortfolio();
     }
   }, [mounted, chain]);
 
-  const loadBalances = async () => {
+  const loadPortfolio = async () => {
     if (!chain) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      console.log(`Loading balances for chain ${chain.id} and address ${STATIC_ADDRESS}`);
-      const balanceData = await oneInchAPI.getWalletBalances(chain.id, STATIC_ADDRESS);
-      setBalances(balanceData);
-      console.log('✅ Balance data loaded:', balanceData);
+      const [tokenData, profitLossData] = await Promise.all([
+        oneInchAPI.getPortfolioDetails(chain.id, STATIC_ADDRESS),
+        oneInchAPI.getPortfolioProfitLoss(chain.id, STATIC_ADDRESS)
+      ]);
+      setTokens(tokenData);
+      setProfitLoss(profitLossData);
+
+      // Fetch token metadata for each token
+      const metadataPromises = tokenData.map(async (token: any) => {
+        const metadata = await oneInchAPI.getTokenMetadata(chain.id, token.contract_address);
+        console.log(`🔍 Token metadata for ${token.symbol}:`, {
+          contract_address: token.contract_address,
+          hasLogoURI: !!metadata?.logoURI,
+          logoURI: metadata?.logoURI,
+          symbol: metadata?.symbol,
+          name: metadata?.name
+        });
+        return { [token.contract_address]: metadata };
+      });
+      
+      const metadataResults = await Promise.all(metadataPromises);
+      const metadataMap = metadataResults.reduce((acc, curr) => ({ ...acc, ...curr }), {});
+      setTokenMetadata(metadataMap);
     } catch (err) {
-      console.error('Error loading balances:', err);
-      setError('Failed to load balance data. Please try again.');
+      setError('Failed to load portfolio data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  // Filter balances to only show non-zero balances
+  const activeBalances = tokens ? Object.entries(tokens).filter(([_, token]) => 
+    parseFloat(token.amount as string) > 0
+  ) : [];
 
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
@@ -85,25 +101,11 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold text-gray-900">Dashboard</h1>
-              {chain && (
-                <div className="flex items-center space-x-2 text-sm text-gray-500">
-                  <span>Network:</span>
-                  <span className="font-semibold text-gray-900">
-                    {chain.name} ({chain.id})
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
-                <span>Static Address:</span>
-                <span className="font-mono text-xs text-gray-900 flex items-center">
-                  <User className="w-3 h-3 mr-1" />
-                  {STATIC_ADDRESS.slice(0, 6)}...{STATIC_ADDRESS.slice(-4)}
-                </span>
-              </div>
             </div>
             <div className="flex items-center space-x-4">
+              <ConnectButton />
               <button
-                onClick={loadBalances}
+                onClick={loadPortfolio}
                 disabled={loading}
                 className="btn btn-outline btn-sm"
               >
@@ -120,7 +122,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-center text-sm text-blue-800">
             <AlertTriangle className="w-4 h-4 mr-2" />
-            <span>Demo Mode: Showing balances for address {STATIC_ADDRESS.slice(0, 6)}...{STATIC_ADDRESS.slice(-4)}</span>
+            <span>Demo Mode: Showing portfolio for address {STATIC_ADDRESS.slice(0, 6)}...{STATIC_ADDRESS.slice(-4)}</span>
           </div>
         </div>
       </div>
@@ -131,101 +133,59 @@ export default function DashboardPage() {
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-gray-600">Loading balance data...</p>
+              <p className="text-gray-600">Loading portfolio data...</p>
             </div>
           </div>
         ) : error ? (
           <div className="text-center py-12">
             <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Balances</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Portfolio</h2>
             <p className="text-gray-600 mb-4">{error}</p>
-            <button onClick={loadBalances} className="btn btn-primary">
+            <button onClick={loadPortfolio} className="btn btn-primary">
               Try Again
             </button>
           </div>
-        ) : balances ? (
+        ) : tokens.length > 0 ? (
           <div className="space-y-8">
-            {/* Balance Overview */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="card p-6"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Token Balances</h2>
-                <DollarSign className="w-5 h-5 text-gray-400" />
-              </div>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(balances).slice(0, 20).map(([tokenAddress, balance]) => (
-                    <div key={tokenAddress} className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm font-mono text-gray-600 truncate">
-                            {tokenAddress.slice(0, 8)}...{tokenAddress.slice(-6)}
-                          </p>
-                          <p className="text-lg font-semibold text-gray-900">
-                            {parseFloat(balance as string).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            parseFloat(balance as string) > 0 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {parseFloat(balance as string) > 0 ? 'Active' : 'Zero'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+            {/* Portfolio Profit/Loss Overview */}
+            {profitLoss && profitLoss.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="card p-6"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-gray-900">Portfolio Overview</h2>
+                  <DollarSign className="w-5 h-5 text-gray-400" />
                 </div>
                 
-                {Object.keys(balances).length > 20 && (
-                  <div className="text-center text-sm text-gray-500">
-                    Showing first 20 tokens of {Object.keys(balances).length} total tokens
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="text-sm font-medium text-blue-600 mb-1">Total Profit/Loss</h3>
+                    <p className={`text-2xl font-bold ${profitLoss[0].abs_profit_usd >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                      {profitLoss[0].abs_profit_usd >= 0 ? '+' : ''}{formatCurrency(profitLoss[0].abs_profit_usd)}
+                    </p>
                   </div>
-                )}
-              </div>
-            </motion.div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h3 className="text-sm font-medium text-green-600 mb-1">Total ROI</h3>
+                    <p className={`text-2xl font-bold ${profitLoss[0].roi >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                      {(profitLoss[0].roi * 100).toFixed(2)}%
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <h3 className="text-sm font-medium text-purple-600 mb-1">Total Tokens</h3>
+                    <p className="text-2xl font-bold text-purple-900">{tokens.length}</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
-            {/* Summary Stats */}
+            {/* Action Buttons - Moved to top */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="grid grid-cols-1 md:grid-cols-3 gap-6"
-            >
-              <div className="card p-6">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Total Tokens</h3>
-                <p className="text-2xl font-bold text-gray-900">{Object.keys(balances).length}</p>
-              </div>
-              <div className="card p-6">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Active Tokens</h3>
-                <p className="text-2xl font-bold text-green-600">
-                  {Object.values(balances).filter(balance => 
-                    parseFloat(balance as string) > 0
-                  ).length}
-                </p>
-              </div>
-              <div className="card p-6">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Zero Balance Tokens</h3>
-                <p className="text-2xl font-bold text-gray-400">
-                  {Object.values(balances).filter(balance => 
-                    parseFloat(balance as string) === 0
-                  ).length}
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Action Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
               className="flex flex-col sm:flex-row gap-4"
             >
               <button
@@ -247,16 +207,117 @@ export default function DashboardPage() {
                 Settings
               </button>
             </motion.div>
+
+            {/* Token Holdings */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="card p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Token Holdings</h2>
+                <DollarSign className="w-5 h-5 text-gray-400" />
+              </div>
+              
+              {tokens.length > 0 ? (
+                <div className="space-y-4">
+                  {tokens.map((token: any) => {
+                    const metadata = tokenMetadata[token.contract_address];
+                    return (
+                      <div key={token.contract_address} className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                                {metadata?.logoURI ? (
+                                  <img 
+                                    src={metadata.logoURI} 
+                                    alt={token.symbol}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      // Hide the image and show a fallback icon
+                                      e.currentTarget.style.display = 'none';
+                                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                    }}
+                                  />
+                                ) : null}
+                                {/* Fallback icon when image fails to load or is not available */}
+                                <div className={`w-full h-full flex items-center justify-center text-gray-500 text-xs font-bold ${metadata?.logoURI ? 'hidden' : ''}`}>
+                                  {token.symbol?.slice(0, 2).toUpperCase() || '??'}
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2">
+                                  <h3 className="font-semibold text-gray-900">{token.symbol}</h3>
+                                  <span className="text-sm text-gray-500">({token.name})</span>
+                                </div>
+                                <p className="text-sm font-mono text-gray-600 truncate">
+                                  {token.contract_address.slice(0, 8)}...{token.contract_address.slice(-6)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <div className="flex items-center justify-end space-x-2">
+                              <span className="text-lg font-semibold text-gray-900">
+                                {token.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                              </span>
+                              <span className="text-sm text-gray-500">{token.symbol}</span>
+                            </div>
+                            <div className="flex items-center justify-end space-x-4">
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {formatCurrency(token.value_usd)}
+                                </p>
+                                <p className="text-xs text-gray-500">USD Value</p>
+                              </div>
+                              <div className="text-right">
+                                <p className={`text-sm font-medium ${token.abs_profit_usd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {token.abs_profit_usd >= 0 ? '+' : ''}{formatCurrency(token.abs_profit_usd)}
+                                </p>
+                                <p className="text-xs text-gray-500">Profit/Loss</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="flex items-center space-x-1">
+                                  {token.roi >= 0 ? (
+                                    <TrendingUpIcon className="w-3 h-3 text-green-600" />
+                                  ) : (
+                                    <TrendingDownIcon className="w-3 h-3 text-red-600" />
+                                  )}
+                                  <p className={`text-sm font-medium ${token.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {(token.roi * 100).toFixed(2)}%
+                                  </p>
+                                </div>
+                                <p className="text-xs text-gray-500">ROI</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <TrendingUpIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Active Tokens</h3>
+                  <p className="text-gray-600">
+                    No tokens with non-zero balances found for this address.
+                  </p>
+                </div>
+              )}
+            </motion.div>
           </div>
         ) : (
           <div className="text-center py-12">
-            <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Balance Data</h2>
+            <TrendingUpIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Portfolio Data</h2>
             <p className="text-gray-600 mb-4">
-              We couldn't find any balance data for this address. Try refreshing or check the network connection.
+              We couldn't find any tokens for this address. Try refreshing or check the network connection.
             </p>
-            <button onClick={loadBalances} className="btn btn-primary">
-              Refresh Balances
+            <button onClick={loadPortfolio} className="btn btn-primary">
+              Refresh Portfolio
             </button>
           </div>
         )}
@@ -273,13 +334,13 @@ export default function DashboardPage() {
         />
       )}
 
-      {showRebalancing && balances && (
+      {showRebalancing && tokens && (
         <RebalancingPanel
           portfolio={{ totalValueUSD: 0, tokens: [], lastUpdated: new Date() }}
           onClose={() => setShowRebalancing(false)}
           onRebalanceComplete={() => {
             setShowRebalancing(false);
-            loadBalances();
+            loadPortfolio();
           }}
         />
       )}

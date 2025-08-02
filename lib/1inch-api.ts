@@ -263,6 +263,73 @@ class OneInchAPI {
       throw error;
     }
   }
+
+  /**
+   * Fetch portfolio details from 1inch portfolio API (only tokens with amount > 0)
+   */
+  async getPortfolioDetails(chainId: number, address: string): Promise<any> {
+    try {
+      const endpoint = `/portfolio/portfolio/v4/overview/erc20/details`;
+      const params = {
+        addresses: address,
+        chain_id: chainId
+      };
+      const response = await this.makeRequest(endpoint, params);
+      if (
+        response &&
+        typeof response === 'object' &&
+        'result' in response &&
+        Array.isArray((response as any).result)
+      ) {
+        // Only return tokens with amount > 0
+        return (response as any).result.filter((token: any) => token.amount > 0);
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Error fetching portfolio details:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch portfolio profit and loss data from 1inch API
+   */
+  async getPortfolioProfitLoss(chainId: number, address: string): Promise<any> {
+    try {
+      const endpoint = `/portfolio/portfolio/v4/overview/erc20/profit_and_loss`;
+      const params = {
+        addresses: address,
+        chain_id: chainId
+      };
+      const response = await this.makeRequest(endpoint, params);
+      if (
+        response &&
+        typeof response === 'object' &&
+        'result' in response &&
+        Array.isArray((response as any).result)
+      ) {
+        return (response as any).result;
+      }
+      return [];
+    } catch (error) {
+      console.error('❌ Error fetching portfolio profit/loss:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch token metadata from 1inch API
+   */
+  async getTokenMetadata(chainId: number, tokenAddress: string): Promise<any> {
+    try {
+      const endpoint = `/token/v1.1/${chainId}/${tokenAddress}`;
+      const response = await this.makeRequest(endpoint, {});
+      return response;
+    } catch (error) {
+      console.error('❌ Error fetching token metadata:', error);
+      return null;
+    }
+  }
 }
 
 export const oneInchAPI = new OneInchAPI();
