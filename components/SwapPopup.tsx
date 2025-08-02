@@ -52,8 +52,20 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
   const getCommonTokens = () => {
     const chainId = chain?.id || 1;
     
-    // Ethereum mainnet tokens
-    if (chainId === 1 || chainId === 31337) { // 31337 is Anvil/Hardhat local fork
+    // Ethereum mainnet tokens (including Anvil fork which uses chain ID 1)
+    if (chainId === 1) {
+      return [
+        { symbol: 'USDC', address: '0xA0b86991c6218b36c1d19D4a2e9eb0ce3606eb48', name: 'USD Coin', decimals: 6 },
+        { symbol: 'USDT', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', name: 'Tether USD', decimals: 6 },
+        { symbol: 'DAI', address: '0x6B175474E89094C44Da98b954EedeAC495271d0F', name: 'Dai Stablecoin', decimals: 18 },
+        { symbol: 'WETH', address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', name: 'Wrapped Ether', decimals: 18 },
+        { symbol: 'UNI', address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984', name: 'Uniswap Token', decimals: 18 },
+        { symbol: 'ETH', address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', name: 'Ethereum', decimals: 18 },
+      ];
+    }
+    
+    // Anvil local fork (if using default Anvil chain ID)
+    if (chainId === 31337) {
       return [
         { symbol: 'USDC', address: '0xA0b86991c6218b36c1d19D4a2e9eb0ce3606eb48', name: 'USD Coin', decimals: 6 },
         { symbol: 'USDT', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', name: 'Tether USD', decimals: 6 },
@@ -221,8 +233,6 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
         src: fromTokenAddress,
         dst: toTokenAddress,
         amount: amountInWei.toString(),
-        includeTokensInfo: 'true',
-        includeProtocols: 'true',
       };
 
       const chainId = chain?.id || 1;
