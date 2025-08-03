@@ -8,7 +8,7 @@ export class StrategyInvestmentService {
   private apiKey: string;
 
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_1INCH_API_URL || 'https://api.1inch.io';
+    this.baseUrl = process.env.NEXT_PUBLIC_1INCH_API_URL || 'https://1inch-vercel-proxy-gamma.vercel.app';
     this.apiKey = process.env.NEXT_PUBLIC_1INCH_API_KEY || '';
 
     console.log('🚀 StrategyInvestmentService initialized');
@@ -48,20 +48,34 @@ export class StrategyInvestmentService {
       console.log('🧪 Testing 1inch API connectivity...');
       console.log('🔗 Using same pattern as working SwapPopup component');
       
-      // Test with the same quote endpoint that works in SwapPopup
-      const testParams = {
-        src: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
-        dst: '0xA0b86991c6218b36c1d19D4a2e9eb0ce3606eb48', // USDC
-        amount: parseUnits('0.1', 18).toString(), // 0.1 ETH
-      };
+      // Use the same endpoint pattern as the working SwapPopup
+      const testEndpoint = '/token/v1.2/1/tokens';
+      const testParams = {};
       
-      const testEndpoint = '/swap/v6.1/1/quote';
-      console.log(`� Testing working endpoint: ${testEndpoint}`);
+      console.log('🌐 Testing with endpoint:', testEndpoint);
       
-      await this.call1inchAPI(testEndpoint, testParams);
-      console.log('✅ 1inch API connectivity test passed');
-    } catch (error) {
+      const url = new URL(this.baseUrl + testEndpoint);
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`1inch API returned status ${response.status}: ${body}`);
+      }
+      
+      console.log('✅ API connectivity test passed');
+      console.log('Response status:', response.status);
+    } catch (error: any) {
       console.error('❌ 1inch API connectivity test failed:', error);
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+      });
       throw error;
     }
   }
@@ -70,6 +84,7 @@ export class StrategyInvestmentService {
     // Add delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 200));
     
+    // Use the exact same pattern as working SwapPopup
     const url = new URL(this.baseUrl + endpoint);
     url.search = new URLSearchParams(params).toString();
 
@@ -92,7 +107,6 @@ export class StrategyInvestmentService {
       console.log('🔍 1inch API Response Details:');
       console.log('Status:', response.status);
       console.log('Status Text:', response.statusText);
-      console.log('Response Headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const body = await response.text();
@@ -102,16 +116,12 @@ export class StrategyInvestmentService {
         console.error('Failed Params:', JSON.stringify(params, null, 2));
         console.error('Response Status:', response.status);
         console.error('Response Body:', body);
-        console.error('Request Headers:', {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${this.apiKey.substring(0, 10)}...`,
-        });
-
+        
         // Handle specific error cases
         if (response.status === 429) {
           throw new Error(`Rate limit exceeded. Please wait before making more requests.`);
         }
-        if (response.status === 400 && body.includes('No content returned')) {
+        if (response.status === 400 && body?.includes('No content returned')) {
           throw new Error(`Invalid request parameters. Please check:
 - Wallet address is valid for the selected network
 - Token addresses are correct for chain ${params.chainId || 'unknown'}
@@ -119,17 +129,25 @@ export class StrategyInvestmentService {
 - Network connection is stable`);
         }
         
-        throw new Error(`1inch API call failed at ${endpoint}: Status ${response.status} - ${body}`);
+        throw new Error(`1inch API returned status ${response.status}: ${body}`);
       }
 
-      const data = await response.json() as T;
+      const data = (await response.json()) as T;
       console.log('✅ 1inch API Success Response received for:', endpoint);
       console.log('Response data keys:', Object.keys(data as any));
       return data;
-    } catch (error) {
-      console.error('❌ Network or parsing error in call1inchAPI:');
+    } catch (error: any) {
+      console.error('❌ 1inch API Error Response:');
       console.error('Failed URL:', url.toString());
-      console.error('Error:', error);
+      console.error('Failed Endpoint:', endpoint);
+      console.error('Failed Params:', JSON.stringify(params, null, 2));
+      
+      // Handle different types of errors
+      if (error.name === 'TypeError' && error.message?.includes('Failed to fetch')) {
+        throw new Error('Network error - please check your internet connection');
+      }
+      
+      // Re-throw the error if it's already formatted
       throw error;
     }
   }
