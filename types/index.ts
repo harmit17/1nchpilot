@@ -229,10 +229,10 @@ export const SUPPORTED_CHAINS: Chain[] = [
     },
   },
   {
-    id: 11155111, // Sepolia Testnet
-    name: 'Sepolia',
-    rpcUrl: 'https://sepolia.infura.io/v3/your-project-id',
-    blockExplorer: 'https://sepolia.etherscan.io',
+    id: 42161, // Arbitrum One
+    name: 'Arbitrum One',
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    blockExplorer: 'https://arbiscan.io',
     nativeCurrency: {
       name: 'Ether',
       symbol: 'ETH',
@@ -240,13 +240,13 @@ export const SUPPORTED_CHAINS: Chain[] = [
     },
   },
   {
-    id: 137, // Polygon
-    name: 'Polygon',
-    rpcUrl: 'https://polygon-rpc.com/',
-    blockExplorer: 'https://polygonscan.com',
+    id: 10, // Optimism
+    name: 'Optimism',
+    rpcUrl: 'https://mainnet.optimism.io',
+    blockExplorer: 'https://optimistic.etherscan.io',
     nativeCurrency: {
-      name: 'MATIC',
-      symbol: 'MATIC',
+      name: 'Ether',
+      symbol: 'ETH',
       decimals: 18,
     },
   },

@@ -46,6 +46,18 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
       return;
     }
 
+    // Check for test addresses
+    const testAddresses = [
+      '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+      '0x70997970c51812dc3a010c7d01b50e0d17dc79c8', 
+      '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc',
+    ];
+
+    if (testAddresses.includes(address.toLowerCase())) {
+      setError('Test wallets cannot be used on mainnet. Please connect a real wallet with funds.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -59,7 +71,18 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
       setCalculation(calc);
       setStep('review');
     } catch (err: any) {
-      setError(err.message || 'Failed to calculate investment');
+      let errorMessage = err.message || 'Failed to calculate investment';
+      
+      // Handle specific error types
+      if (err.message?.includes('Rate limit exceeded')) {
+        errorMessage = 'API rate limit exceeded. Please wait a moment and try again.';
+      } else if (err.message?.includes('test address')) {
+        errorMessage = 'Test wallets cannot be used on mainnet. Please connect a real wallet.';
+      } else if (err.message?.includes('Invalid request parameters')) {
+        errorMessage = 'Invalid request. Please check your wallet connection and network.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -68,6 +91,18 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
   const handleInvestmentExecute = async () => {
     if (!calculation || !chain || !address || !walletClient) {
       setError('Missing required data for execution');
+      return;
+    }
+
+    // Check for test addresses
+    const testAddresses = [
+      '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+      '0x70997970c51812dc3a010c7d01b50e0d17dc79c8', 
+      '0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc',
+    ];
+
+    if (testAddresses.includes(address.toLowerCase())) {
+      setError('Test wallets cannot be used on mainnet. Please connect a real wallet with funds.');
       return;
     }
 
@@ -86,7 +121,24 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
       setTransactionHashes(hashes);
       setStep('complete');
     } catch (err: any) {
-      setError(err.message || 'Failed to execute investment');
+      console.error('❌ Error executing investment:', err);
+      console.error('Error message:', err.message);
+      console.error('Error stack:', err.stack);
+      
+      let errorMessage = err.message || 'Failed to execute investment';
+      
+      // Handle specific error types
+      if (err.message?.includes('Rate limit exceeded')) {
+        errorMessage = 'API rate limit exceeded. Please wait a moment and try again.';
+      } else if (err.message?.includes('test address')) {
+        errorMessage = 'Test wallets cannot be used on mainnet. Please connect a real wallet.';
+      } else if (err.message?.includes('Invalid request parameters')) {
+        errorMessage = 'Invalid request. Please check your wallet connection and try again.';
+      } else if (err.message?.includes('No content returned')) {
+        errorMessage = 'Trading pair not available. Please try a different amount or strategy.';
+      }
+      
+      setError(errorMessage);
       setStep('review');
     } finally {
       setLoading(false);
@@ -297,20 +349,6 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
         <div className="p-6">
           {step === 'select' && (
             <div>
-              {/* Network Warning for non-mainnet */}
-              {chain && chain.id !== 1 && (
-                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Info className="w-5 h-5 text-yellow-600" />
-                    <span className="font-semibold text-yellow-900">⚠️ Network Notice</span>
-                  </div>
-                  <p className="text-sm text-yellow-700">
-                    Strategy investments are currently optimized for <strong>Ethereum Mainnet</strong>. 
-                    Please switch to Mainnet for the best experience with 1inch APIs and strategy execution.
-                  </p>
-                </div>
-              )}
-
               {/* Network Info */}
               <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
