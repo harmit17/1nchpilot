@@ -272,7 +272,7 @@ export class DemoPortfolioAIService {
         tvl: 8000000000,
         apy: 8.5,
         riskLevel: "HIGH" as const,
-        compatibility: ["Ethereum", "Arbitrum", "Optimism"],
+        compatibility: ["Ethereum", "Arbitrum"],
         reasoning: "Higher yields through active liquidity management"
       },
       {

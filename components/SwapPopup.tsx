@@ -50,7 +50,7 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
 
   // Common token addresses for quick selection
   const getCommonTokens = () => {
-    const chainId = chain?.id || 1;
+    const chainId = chain?.id || 1; // Default to Ethereum
     
     // Ethereum mainnet tokens (including Anvil fork which uses chain ID 1)
     if (chainId === 1) {
@@ -83,7 +83,7 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
         { symbol: 'USDT', address: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9', name: 'Tether USD', decimals: 6 },
         { symbol: 'DAI', address: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1', name: 'Dai Stablecoin', decimals: 18 },
         { symbol: 'WETH', address: '0x82af49447d8a07e3bd95bd0d56f35241523fbab1', name: 'Wrapped Ether', decimals: 18 },
-        { symbol: 'UNI', address: '0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0', name: 'Uniswap Token', decimals: 18 },
+        { symbol: 'ARB', address: '0x912ce59144191c1204e64559fe8253a0e49e6548', name: 'Arbitrum Token', decimals: 18 },
         { symbol: 'ETH', address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', name: 'Ethereum', decimals: 18 },
       ];
     }
@@ -233,11 +233,13 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
         src: fromTokenAddress,
         dst: toTokenAddress,
         amount: amountInWei.toString(),
+        slippage: slippage.toString(),
       };
 
       const chainId = chain?.id || 1;
       const endpoint = `/swap/v6.1/${chainId}/quote`;
       const quoteResult = await call1inchAPI<any>(endpoint, quoteParams);
+      
       setQuote(quoteResult);
       setSuccess('Quote received successfully! Review the details below.');
       setStep('approval');
@@ -311,10 +313,10 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-xl shadow-2xl max-w-md w-full h-[90vh] flex flex-col"
       >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-xl">
+        {/* Fixed Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ArrowUpDown className="w-6 h-6" />
@@ -332,8 +334,9 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
           </p>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
+          <div className="p-6 space-y-6">
           {/* Network Info */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
@@ -522,9 +525,14 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
                   <span className="text-gray-600">From Amount:</span>
                   <span className="font-medium">
                     {(() => {
-                      const fromToken = commonTokens.find(t => t.address === fromTokenAddress);
-                      const decimals = fromToken?.decimals || 18;
-                      return (parseFloat(quote.fromTokenAmount) / Math.pow(10, decimals)).toFixed(6);
+                      try {
+                        const fromToken = commonTokens.find(t => t.address === fromTokenAddress);
+                        const symbol = fromToken?.symbol || 'TOKEN';
+                        return `${amountToSwap} ${symbol}`;
+                      } catch (error) {
+                        console.error('Error formatting from amount:', error);
+                        return amountToSwap || 'N/A';
+                      }
                     })()}
                   </span>
                 </div>
@@ -532,19 +540,74 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
                   <span className="text-gray-600">To Amount:</span>
                   <span className="font-medium">
                     {(() => {
-                      const toToken = commonTokens.find(t => t.address === toTokenAddress);
-                      const decimals = toToken?.decimals || 18;
-                      return (parseFloat(quote.toTokenAmount) / Math.pow(10, decimals)).toFixed(6);
+                      try {
+                        const toToken = commonTokens.find(t => t.address === toTokenAddress);
+                        const decimals = toToken?.decimals || 18;
+                        const symbol = toToken?.symbol || 'TOKEN';
+                        
+                        // Try different possible field names from 1inch API
+                        const amount = quote.toAmount || quote.toTokenAmount || quote.destAmount || quote.dstAmount;
+                        
+                        if (!amount) {
+                          return 'N/A';
+                        }
+                        
+                        // Convert from wei to readable format
+                        const formattedAmount = formatUnits(BigInt(amount), decimals);
+                        return `${parseFloat(formattedAmount).toFixed(6)} ${symbol}`;
+                      } catch (error) {
+                        console.error('Error formatting to amount:', error);
+                        return 'N/A';
+                      }
+                    })()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Exchange Rate:</span>
+                  <span className="font-medium">
+                    {(() => {
+                      try {
+                        const fromToken = commonTokens.find(t => t.address === fromTokenAddress);
+                        const toToken = commonTokens.find(t => t.address === toTokenAddress);
+                        const fromSymbol = fromToken?.symbol || 'TOKEN';
+                        const toSymbol = toToken?.symbol || 'TOKEN';
+                        
+                        const toAmount = quote.toAmount || quote.toTokenAmount || quote.destAmount || quote.dstAmount;
+                        if (!toAmount || !amountToSwap) return 'N/A';
+                        
+                        const toDecimals = toToken?.decimals || 18;
+                        const formattedToAmount = formatUnits(BigInt(toAmount), toDecimals);
+                        const rate = parseFloat(formattedToAmount) / parseFloat(amountToSwap);
+                        
+                        return `1 ${fromSymbol} = ${rate.toFixed(6)} ${toSymbol}`;
+                      } catch (error) {
+                        console.error('Error calculating exchange rate:', error);
+                        return 'N/A';
+                      }
                     })()}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Estimated Gas:</span>
-                  <span className="font-medium">{quote.estimatedGasUSD}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Gas Price:</span>
-                  <span className="font-medium">{quote.gasPriceUSD}</span>
+                  <span className="font-medium">
+                    {(() => {
+                      // Use the gas value from 1inch API response
+                      const gasValue = quote.gas;
+                      
+                      if (gasValue) {
+                        try {
+                          // Format gas value with commas for readability
+                          const gasNumber = typeof gasValue === 'string' ? parseInt(gasValue) : gasValue;
+                          return gasNumber.toLocaleString();
+                        } catch (error) {
+                          console.error('Error formatting gas value:', error);
+                          return gasValue.toString();
+                        }
+                      }
+                      
+                      return 'N/A';
+                    })()}
+                  </span>
                 </div>
               </div>
             </div>
@@ -618,6 +681,7 @@ export default function SwapPopup({ onClose }: SwapPopupProps) {
                 </ul>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </motion.div>

@@ -122,27 +122,27 @@ export const STRATEGIES: Strategy[] = [
     chains: [1, 42161, 10], // Ethereum, Arbitrum, Optimism
     tokens: [
       {
-        address: '0x912CE59144191C1204E64559FE8253a0e49E6548', // ARB on Ethereum
+        address: '0xb50721bcf8d664c30412cfbc6cf7a15145234ad1', // ARB on Ethereum
         symbol: 'ARB',
         name: 'Arbitrum',
         decimals: 18,
         targetPercentage: 40,
         color: '#12AAFF',
         chainSpecific: {
-          1: '0x912CE59144191C1204E64559FE8253a0e49E6548', // Ethereum
+          1: '0xb50721bcf8d664c30412cfbc6cf7a15145234ad1', // Ethereum
           42161: '0x912CE59144191C1204E64559FE8253a0e49E6548', // Arbitrum (native)
           10: '0x912CE59144191C1204E64559FE8253a0e49E6548', // Use ETH equivalent on Optimism
         }
       },
       {
-        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA', // LINK on Ethereum
+        address: '0x514910771af9ca656af840dff83e8264ecf986ca', // LINK on Ethereum
         symbol: 'LINK',
         name: 'Chainlink',
         decimals: 18,
         targetPercentage: 35,
         color: '#375BD2',
         chainSpecific: {
-          1: '0x514910771AF9Ca656af840dff83E8264EcF986CA', // Ethereum
+          1: '0x514910771af9ca656af840dff83e8264ecf986ca', // Ethereum
           42161: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4', // Arbitrum
           10: '0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6', // Optimism
         }

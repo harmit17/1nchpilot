@@ -1,11 +1,11 @@
 import { getDefaultWallets } from '@rainbow-me/rainbowkit';
 import { configureChains, createConfig } from 'wagmi';
-import { mainnet, arbitrum, optimism } from 'wagmi/chains';
+import { mainnet, arbitrum } from 'wagmi/chains';
 import { alchemyProvider } from 'wagmi/providers/alchemy';
 import { publicProvider } from 'wagmi/providers/public';
 
 const { chains, publicClient, webSocketPublicClient } = configureChains(
-  [mainnet, arbitrum, optimism], // Multiple chains to show dropdown
+  [mainnet, arbitrum], // Multiple chains to show dropdown
   [
     alchemyProvider({
       apiKey: process.env.NEXT_PUBLIC_ALCHEMY_MAINNET_API_KEY || '',

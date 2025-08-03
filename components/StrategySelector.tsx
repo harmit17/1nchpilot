@@ -10,9 +10,26 @@ interface StrategySelectorProps {
   onStrategyCreated: (strategy: Strategy) => void;
 }
 
+// Known token addresses (can't be edited)
+const KNOWN_TOKEN_ADDRESSES = {
+  'ETH': '0x0000000000000000000000000000000000000000', // Native ETH
+  'USDC': '0xA0b86a33E6441e13Ff5B0B4d32aFf52E16ADE2e4', // USDC on Arbitrum
+  'ARB': '0x912CE59144191C1204E64559FE8253a0e49E6548',  // ARB token
+  'UNI': '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0'   // UNI on Arbitrum
+};
+
+const KNOWN_ADDRESSES = Object.values(KNOWN_TOKEN_ADDRESSES);
+
+const TOKEN_DESCRIPTIONS = {
+  'ETH': '✓ Native ETH (Ethereum)',
+  'USDC': '✓ USD Coin (Arbitrum)', 
+  'ARB': '✓ Arbitrum Token',
+  'UNI': '✓ Uniswap Token (Arbitrum)'
+};
+
 export default function StrategySelector({ onClose, onStrategyCreated }: StrategySelectorProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [customAllocations, setCustomAllocations] = useState<Array<{ symbol: string; percentage: number }>>([]);
+  const [customAllocations, setCustomAllocations] = useState<Array<{ symbol: string; address: string; percentage: number }>>([]);
   const [strategyName, setStrategyName] = useState('');
   const [step, setStep] = useState<'template' | 'custom' | 'review'>('template');
 
@@ -20,7 +37,10 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
     setSelectedTemplate(templateId);
     const template = DEFAULT_STRATEGY_TEMPLATES.find(t => t.id === templateId);
     if (template) {
-      setCustomAllocations(template.allocations);
+      setCustomAllocations(template.allocations.map(allocation => ({
+        ...allocation,
+        address: '' // Templates don't have addresses, will be resolved later
+      })));
       setStrategyName(template.name);
     }
     setStep('review');
@@ -29,16 +49,16 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
   const handleCreateCustom = () => {
     setSelectedTemplate(null);
     setCustomAllocations([
-      { symbol: 'ETH', percentage: 40 },
-      { symbol: 'USDC', percentage: 30 },
-      { symbol: 'LDO', percentage: 20 },
-      { symbol: 'UNI', percentage: 10 },
+      { symbol: 'ETH', address: KNOWN_TOKEN_ADDRESSES.ETH, percentage: 40 },
+      { symbol: 'USDC', address: KNOWN_TOKEN_ADDRESSES.USDC, percentage: 30 },
+      { symbol: 'ARB', address: KNOWN_TOKEN_ADDRESSES.ARB, percentage: 20 },
+      { symbol: 'UNI', address: KNOWN_TOKEN_ADDRESSES.UNI, percentage: 10 },
     ]);
     setStrategyName('Custom Strategy');
     setStep('custom');
   };
 
-  const handleAllocationChange = (index: number, field: 'symbol' | 'percentage', value: string | number) => {
+  const handleAllocationChange = (index: number, field: 'symbol' | 'address' | 'percentage', value: string | number) => {
     const newAllocations = [...customAllocations];
     newAllocations[index] = {
       ...newAllocations[index],
@@ -48,7 +68,7 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
   };
 
   const addAllocation = () => {
-    setCustomAllocations([...customAllocations, { symbol: '', percentage: 0 }]);
+    setCustomAllocations([...customAllocations, { symbol: '', address: '', percentage: 0 }]);
   };
 
   const removeAllocation = (index: number) => {
@@ -64,7 +84,7 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
         'Custom portfolio strategy',
       targetAllocation: customAllocations.map(allocation => ({
         token: {
-          address: '', // Will be resolved when tokens are available
+          address: allocation.address || '', // Use provided address or empty string
           symbol: allocation.symbol,
           name: allocation.symbol,
           decimals: 18,
@@ -84,7 +104,7 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
   };
 
   const totalPercentage = customAllocations.reduce((sum, allocation) => sum + allocation.percentage, 0);
-  const isValid = strategyName.trim() && totalPercentage === 100 && customAllocations.every(a => a.symbol.trim());
+  const isValid = strategyName.trim() && totalPercentage === 100 && customAllocations.every(a => a.symbol.trim() && (a.address.trim() || true)); // Allow empty address for now
 
   return (
     <AnimatePresence>
@@ -99,11 +119,11 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-lg shadow-xl max-w-2xl w-full h-[90vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          {/* Fixed Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                 <Settings className="w-5 h-5 text-purple-600" />
@@ -121,8 +141,9 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
             </button>
           </div>
 
-          {/* Content */}
-          <div className="p-6">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto scrollbar-hide">
+            <div className="p-6">
             {step === 'template' && (
               <div className="space-y-6">
                 <div>
@@ -175,27 +196,50 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
                   
                   <div className="space-y-3">
                     {customAllocations.map((allocation, index) => (
-                      <div key={index} className="flex items-center space-x-3">
-                        <input
-                          type="text"
-                          value={allocation.symbol}
-                          onChange={(e) => handleAllocationChange(index, 'symbol', e.target.value)}
-                          placeholder="Token Symbol"
-                          className="input flex-1"
-                        />
-                        <input
-                          type="number"
-                          value={allocation.percentage}
-                          onChange={(e) => handleAllocationChange(index, 'percentage', e.target.value)}
-                          placeholder="%"
-                          className="input w-20"
-                        />
-                        <button
-                          onClick={() => removeAllocation(index)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                      <div key={index} className="space-y-2 p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-700">Token {index + 1}</h4>
+                          <button
+                            onClick={() => removeAllocation(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                          <input
+                            type="text"
+                            value={allocation.symbol}
+                            onChange={(e) => handleAllocationChange(index, 'symbol', e.target.value)}
+                            placeholder="Token Symbol (e.g., ETH, USDC)"
+                            className="input w-full"
+                          />
+                          <input
+                            type="text"
+                            value={allocation.address}
+                            onChange={(e) => handleAllocationChange(index, 'address', e.target.value)}
+                            placeholder="Token Contract Address (0x...)"
+                            className={`input w-full ${KNOWN_ADDRESSES.includes(allocation.address) ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+                            disabled={KNOWN_ADDRESSES.includes(allocation.address)}
+                          />
+                          {KNOWN_ADDRESSES.includes(allocation.address) && (
+                            <div className="text-xs text-gray-500">
+                              {TOKEN_DESCRIPTIONS[allocation.symbol as keyof typeof TOKEN_DESCRIPTIONS]}
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              value={allocation.percentage}
+                              onChange={(e) => handleAllocationChange(index, 'percentage', e.target.value)}
+                              placeholder="Percentage"
+                              className="input flex-1"
+                              min="0"
+                              max="100"
+                            />
+                            <span className="text-sm text-gray-500">%</span>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -209,17 +253,17 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
                   </button>
                 </div>
                 
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center pt-4 border-t border-gray-200">
                   <button
                     onClick={() => setStep('template')}
-                    className="btn btn-outline"
+                    className="btn btn-outline btn-md px-6"
                   >
                     Back to Templates
                   </button>
                   <button
                     onClick={() => setStep('review')}
                     disabled={!isValid}
-                    className="btn btn-primary"
+                    className="btn btn-primary btn-md px-6"
                   >
                     Review Strategy
                   </button>
@@ -234,11 +278,22 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
                   
                   <div className="card p-4 mb-4">
                     <h4 className="font-semibold text-gray-900 mb-3">{strategyName}</h4>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {customAllocations.map((allocation, index) => (
-                        <div key={index} className="flex justify-between text-sm">
-                          <span className="text-gray-600">{allocation.symbol}</span>
-                          <span className="font-medium">{allocation.percentage}%</span>
+                        <div key={index} className="border-b border-gray-100 pb-2 last:border-b-0 last:pb-0">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-medium text-gray-900">{allocation.symbol}</span>
+                                <span className="text-sm font-medium text-gray-900">{allocation.percentage}%</span>
+                              </div>
+                              {allocation.address && (
+                                <div className="text-xs text-gray-500 mt-1 font-mono">
+                                  {allocation.address.slice(0, 10)}...{allocation.address.slice(-8)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -261,17 +316,17 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
                   )}
                 </div>
                 
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center pt-4 border-t border-gray-200">
                   <button
                     onClick={() => setStep(selectedTemplate ? 'template' : 'custom')}
-                    className="btn btn-outline"
+                    className="btn btn-outline btn-md px-6"
                   >
                     Back
                   </button>
                   <button
                     onClick={handleCreateStrategy}
                     disabled={!isValid}
-                    className="btn btn-primary"
+                    className="btn btn-primary btn-md px-6"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Create Strategy
@@ -279,6 +334,7 @@ export default function StrategySelector({ onClose, onStrategyCreated }: Strateg
                 </div>
               </div>
             )}
+            </div>
           </div>
         </motion.div>
       </motion.div>

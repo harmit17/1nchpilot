@@ -216,7 +216,7 @@ export interface AppError {
 }
 
 // Constants
-export const SUPPORTED_CHAINS: Chain[] = [
+export const SUPPORTED_CHAINS = [
   {
     id: 1, // Ethereum Mainnet
     name: 'Ethereum',
@@ -239,17 +239,6 @@ export const SUPPORTED_CHAINS: Chain[] = [
       decimals: 18,
     },
   },
-  {
-    id: 10, // Optimism
-    name: 'Optimism',
-    rpcUrl: 'https://mainnet.optimism.io',
-    blockExplorer: 'https://optimistic.etherscan.io',
-    nativeCurrency: {
-      name: 'Ether',
-      symbol: 'ETH',
-      decimals: 18,
-    },
-  },
 ];
 
 export const DEFAULT_STRATEGY_TEMPLATES = [
@@ -259,7 +248,7 @@ export const DEFAULT_STRATEGY_TEMPLATES = [
     description: 'A balanced portfolio of established DeFi protocols',
     allocations: [
       { symbol: 'ETH', percentage: 40 },
-      { symbol: 'LDO', percentage: 20 },
+      { symbol: 'ARB', percentage: 20 },
       { symbol: 'UNI', percentage: 20 },
       { symbol: 'USDC', percentage: 20 },
     ],
@@ -267,12 +256,11 @@ export const DEFAULT_STRATEGY_TEMPLATES = [
   {
     id: 'l2-scalers',
     name: 'L2 Scalers',
-    description: 'Focus on Layer 2 scaling solutions',
+    description: 'Focus on Arbitrum and Layer 2 scaling solutions',
     allocations: [
-      { symbol: 'ETH', percentage: 30 },
-      { symbol: 'MATIC', percentage: 25 },
-      { symbol: 'ARB', percentage: 25 },
-      { symbol: 'OP', percentage: 20 },
+      { symbol: 'ETH', percentage: 40 },
+      { symbol: 'ARB', percentage: 35 },
+      { symbol: 'USDC', percentage: 25 },
     ],
   },
   {

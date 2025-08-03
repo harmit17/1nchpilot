@@ -11,7 +11,13 @@ import {
   BarChart3, 
   ArrowRight,
   CheckCircle,
-  Sparkles
+  Sparkles,
+  Target,
+  ArrowUpDown,
+  PieChart,
+  FileText,
+  TrendingDown,
+  Activity
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -52,14 +58,14 @@ export default function HomePage() {
             className="text-center"
           >
             <h1 className="text-4xl sm:text-6xl font-bold text-gray-900 mb-6">
-              Autonomous{' '}
+              Smart{' '}
               <span className="text-gradient">DeFi Portfolio</span>
               <br />
-              Co-Pilot
+              Management
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Build, manage, and automate your DeFi portfolio with intelligent rebalancing. 
-              Gasless & MEV-Protected. Powered by 1inch Fusion.
+              Build and manage your DeFi portfolio with pre-built strategies, real-time analytics, 
+              and seamless token swaps.
             </p>
             
             {isConnected ? (
@@ -101,7 +107,7 @@ export default function HomePage() {
               Why Choose 1nchPilot?
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Experience the future of DeFi portfolio management with our intelligent automation platform.
+              Experience intelligent DeFi portfolio management with pre-built strategies, real-time analytics, and seamless multi-chain swaps.
             </p>
           </motion.div>
 
@@ -116,10 +122,10 @@ export default function HomePage() {
                 <TrendingUp className="w-6 h-6 text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Intelligent Rebalancing
+                Pre-Built Strategies
               </h3>
               <p className="text-gray-600">
-                Automatically rebalance your portfolio based on your target allocation with smart drift detection.
+                Choose from Blue Chip, Growth, or Conservative portfolios with optimized token allocations and investment management.
               </p>
             </motion.div>
 
@@ -130,13 +136,13 @@ export default function HomePage() {
               className="card p-6 hover:shadow-lg transition-shadow"
             >
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                <Shield className="w-6 h-6 text-green-600" />
+                <BarChart3 className="w-6 h-6 text-green-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Gasless & MEV-Protected
+                Real-Time Analytics
               </h3>
               <p className="text-gray-600">
-                Execute trades without gas fees using 1inch Fusion. Protected from MEV attacks.
+                Track portfolio performance with interactive charts, profit/loss tracking, and detailed token breakdowns.
               </p>
             </motion.div>
 
@@ -146,14 +152,14 @@ export default function HomePage() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="card p-6 hover:shadow-lg transition-shadow"
             >
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                <Zap className="w-6 h-6 text-purple-600" />
+              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center mb-4">
+                <FileText className="w-6 h-6 text-emerald-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Lightning Fast
+                Generate Analytics
               </h3>
               <p className="text-gray-600">
-                Execute complex multi-token rebalancing in seconds with optimized routing.
+                Create comprehensive portfolio reports with performance insights, risk analysis, and investment recommendations.
               </p>
             </motion.div>
 
@@ -163,14 +169,14 @@ export default function HomePage() {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="card p-6 hover:shadow-lg transition-shadow"
             >
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-                <BarChart3 className="w-6 h-6 text-orange-600" />
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                <ArrowUpDown className="w-6 h-6 text-purple-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Real-time Analytics
+                Seamless Swaps
               </h3>
               <p className="text-gray-600">
-                Monitor your portfolio performance with detailed charts and drift analysis.
+                Execute token swaps with best-in-class rates powered by 1inch aggregation.
               </p>
             </motion.div>
 
@@ -181,13 +187,13 @@ export default function HomePage() {
               className="card p-6 hover:shadow-lg transition-shadow"
             >
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
-                <CheckCircle className="w-6 h-6 text-red-600" />
+                <PieChart className="w-6 h-6 text-red-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Strategy Templates
+                Portfolio Tracking
               </h3>
               <p className="text-gray-600">
-                Choose from pre-built strategies or create your own custom allocation.
+                Monitor balances, performance, and allocation drift with comprehensive portfolio analytics.
               </p>
             </motion.div>
 
@@ -204,7 +210,7 @@ export default function HomePage() {
                 Powered by 1inch
               </h3>
               <p className="text-gray-600">
-                Leverage the most advanced DEX aggregator for optimal trade execution.
+                Leverage the most advanced DEX aggregator for optimal swap rates and execution.
               </p>
             </motion.div>
           </div>
@@ -220,10 +226,10 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
           >
             <h2 className="text-3xl font-bold text-white mb-4">
-              Ready to Transform Your DeFi Experience?
+              Ready to Optimize Your DeFi Portfolio?
             </h2>
             <p className="text-xl text-blue-100 mb-8">
-              Join thousands of users who trust 1nchPilot for their portfolio management.
+              Start building and managing your DeFi portfolio with intelligent strategies and real-time analytics.
             </p>
             {isConnected ? (
               <Link href="/dashboard">
@@ -255,7 +261,7 @@ export default function HomePage() {
                 <span className="text-xl font-bold">1nchPilot</span>
               </div>
               <p className="text-gray-400">
-                Autonomous DeFi Portfolio Co-Pilot powered by 1inch Fusion.
+                Smart DeFi Portfolio Management with pre-built strategies, real-time analytics, and seamless multi-chain swaps.
               </p>
             </div>
             <div>
@@ -284,7 +290,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 1nchPilot. All rights reserved.</p>
+            <p>&copy; 2025 1nchPilot. All rights reserved.</p>
           </div>
         </div>
       </footer>

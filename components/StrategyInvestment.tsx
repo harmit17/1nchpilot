@@ -46,6 +46,17 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
       return;
     }
 
+    // Validate investment amount
+    const amount = parseFloat(investmentAmount);
+    if (amount < 0.001) {
+      setError('Minimum investment amount is 0.001 ETH');
+      return;
+    }
+    if (amount > 100) {
+      setError('Maximum investment amount is 100 ETH per transaction');
+      return;
+    }
+
     // Check for test addresses
     const testAddresses = [
       '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
@@ -68,16 +79,24 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
         chain.id,
         address
       );
+
       setCalculation(calc);
       setStep('review');
     } catch (err: any) {
+      console.error('❌ Error calculating investment:', err);
       let errorMessage = err.message || 'Failed to calculate investment';
       
-      // Handle specific error types
-      if (err.message?.includes('Rate limit exceeded')) {
-        errorMessage = 'API rate limit exceeded. Please wait a moment and try again.';
+      // Handle specific error types with better user messaging
+      if (err.message?.includes('Unable to get pricing')) {
+        errorMessage = err.message; // Use the detailed message from the service
+      } else if (err.message?.includes('Minimum investment amount')) {
+        errorMessage = 'Investment amount too small. Please enter at least 0.001 ETH.';
+      } else if (err.message?.includes('Maximum investment amount')) {
+        errorMessage = 'Investment amount too large. Please enter less than 100 ETH.';
       } else if (err.message?.includes('test address')) {
-        errorMessage = 'Test wallets cannot be used on mainnet. Please connect a real wallet.';
+        errorMessage = 'Test wallets cannot be used. Please connect a real wallet.';
+      } else if (err.message?.includes('Rate limit exceeded')) {
+        errorMessage = 'API rate limit reached. Please wait a moment and try again.';
       } else if (err.message?.includes('Invalid request parameters')) {
         errorMessage = 'Invalid request. Please check your wallet connection and network.';
       }
@@ -134,8 +153,12 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
         errorMessage = 'Test wallets cannot be used on mainnet. Please connect a real wallet.';
       } else if (err.message?.includes('Invalid request parameters')) {
         errorMessage = 'Invalid request. Please check your wallet connection and try again.';
-      } else if (err.message?.includes('No content returned')) {
+      } else if (err.message?.includes('No content returned') || err.message?.includes('No liquidity available')) {
         errorMessage = 'Trading pair not available. Please try a different amount or strategy.';
+      } else if (err.message?.includes('Network error')) {
+        errorMessage = 'Network connection issue. Please check your internet connection and try again.';
+      } else if (err.message?.includes('Invalid response from 1inch API')) {
+        errorMessage = 'API response error. Please try again in a moment.';
       }
       
       setError(errorMessage);
@@ -310,10 +333,10 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-xl shadow-2xl max-w-6xl w-full h-[90vh] flex flex-col"
       >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-xl">
+        {/* Fixed Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-xl flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Target className="w-6 h-6" />
@@ -341,8 +364,9 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
           </p>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
+          <div className="p-6">
           {step === 'select' && (
             <div>
               {/* Network Info */}
@@ -563,6 +587,7 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
               </button>
             </div>
           )}
+          </div>
         </div>
       </motion.div>
     </div>

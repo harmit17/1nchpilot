@@ -15,6 +15,23 @@ export const formatCurrency = (value: number, currency = 'USD'): string => {
   return `${value.toFixed(2)} ${currency}`;
 };
 
+// Format profit/loss values with proper sign handling
+export const formatProfitLoss = (value: number, currency = 'USD'): string => {
+  const absValue = Math.abs(value);
+  const sign = value >= 0 ? '+' : '-';
+  
+  if (absValue >= 1e9) {
+    return `${sign}${(absValue / 1e9).toFixed(2)}B ${currency}`;
+  }
+  if (absValue >= 1e6) {
+    return `${sign}${(absValue / 1e6).toFixed(2)}M ${currency}`;
+  }
+  if (absValue >= 1e3) {
+    return `${sign}${(absValue / 1e3).toFixed(2)}K ${currency}`;
+  }
+  return `${sign}${absValue.toFixed(2)} ${currency}`;
+};
+
 // Format token amounts
 export const formatTokenAmount = (
   amount: string,
@@ -177,12 +194,84 @@ export const isValidAddress = (address: string): boolean => {
   return /^0x[a-fA-F0-9]{40}$/.test(address);
 };
 
-// Get token logo URL
+// Get token logo URL with multiple fallbacks
 export const getTokenLogoUrl = (token: Token): string => {
-  if (token.logoURI) return token.logoURI;
+  // Array of logo sources to try in order
+  const logoSources: string[] = [];
   
-  // Fallback to CoinGecko API
-  return `https://assets.coingecko.com/coins/images/1/small/bitcoin.png`;
+  // 1. Primary: Use token's original logoURI if available
+  if (token.logoURI && token.logoURI.startsWith('http')) {
+    logoSources.push(token.logoURI);
+  }
+  
+  // Only proceed with address-based fallbacks if we have a valid address
+  if (token.address && token.address.startsWith('0x') && token.address.length === 42) {
+    const checksumAddress = token.address; // In a real app, you'd want to checksum this
+    
+    // 2. Trust Wallet assets (most comprehensive)
+    logoSources.push(`https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${checksumAddress}/logo.png`);
+    
+    // 3. CoinGecko API (reliable source)
+    logoSources.push(`https://assets.coingecko.com/coins/images/ethereum/${token.address.toLowerCase()}.png`);
+    
+    // 4. 1inch token list
+    logoSources.push(`https://tokens.1inch.io/${checksumAddress}.png`);
+    
+    // 5. Uniswap token list assets
+    logoSources.push(`https://raw.githubusercontent.com/Uniswap/assets/master/blockchains/ethereum/assets/${checksumAddress}/logo.png`);
+    
+    // 6. TokenLists.org assets
+    logoSources.push(`https://raw.githubusercontent.com/compound-finance/token-list/master/assets/${checksumAddress}.svg`);
+    
+    // 7. Moralis token logo API
+    logoSources.push(`https://cdn.moralis.io/eth/0x${checksumAddress.slice(2)}.png`);
+  }
+  
+  // For now, return the first available source
+  // In a production app, you might want to test these URLs and return the first working one
+  return logoSources[0] || '';
+};
+
+// Helper function to test if an image URL is accessible (for future use)
+export const testImageUrl = async (url: string): Promise<boolean> => {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
+
+// Enhanced version that tests multiple sources (use this in production)
+export const getWorkingTokenLogoUrl = async (token: Token): Promise<string> => {
+  const logoSources: string[] = [];
+  
+  // 1. Primary: Use token's original logoURI if available
+  if (token.logoURI && token.logoURI.startsWith('http')) {
+    logoSources.push(token.logoURI);
+  }
+  
+  // Only proceed with address-based fallbacks if we have a valid address
+  if (token.address && token.address.startsWith('0x') && token.address.length === 42) {
+    const checksumAddress = token.address;
+    
+    logoSources.push(
+      `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${checksumAddress}/logo.png`,
+      `https://assets.coingecko.com/coins/images/ethereum/${token.address.toLowerCase()}.png`,
+      `https://tokens.1inch.io/${checksumAddress}.png`,
+      `https://raw.githubusercontent.com/Uniswap/assets/master/blockchains/ethereum/assets/${checksumAddress}/logo.png`,
+      `https://cdn.moralis.io/eth/${checksumAddress.toLowerCase()}.png`
+    );
+  }
+  
+  // Test each URL and return the first working one
+  for (const url of logoSources) {
+    if (await testImageUrl(url)) {
+      return url;
+    }
+  }
+  
+  return ''; // Return empty string if no working URL found
 };
 
 // Calculate gas cost in USD

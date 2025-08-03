@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Token, TokenBalance, Portfolio, OneInchQuote, OneInchOrder, OneInchOrderStatus, TransactionHistory, PortfolioMetrics } from '@/types';
+import { Token, TokenBalance, Portfolio, OneInchOrder, OneInchOrderStatus, TransactionHistory, PortfolioMetrics } from '@/types';
 
 // --- Configuration for Rate Limiting ---
 // The number of requests to send in a single parallel batch.
@@ -24,19 +24,6 @@ class OneInchAPI {
   private async makeRequest<T>(endpoint: string, params: Record<string, any> = {}): Promise<T> {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      console.log('🚀 Endpoint:', endpoint);
-      console.log('🚀 Calling 1inch API via proxy:', url);
-      
-      // Convert params object to readable string for logging
-      const paramsString = Object.entries(params)
-        .map(([key, value]) => `${key}=${value}`)
-        .join('&');
-      
-      if (paramsString) {
-        console.log('🚀 Query Parameters:', paramsString);
-      } else {
-        console.log('🚀 Query Parameters: None (using path parameters only)');
-      }
       
       const response = await axios.get(url, {
         headers: {
@@ -45,7 +32,6 @@ class OneInchAPI {
         },
         params: params,
       });
-      console.log('🚀 Response received successfully');
       return response.data;
     } catch (error: any) {
       console.error('❌ API request via proxy failed:', error.response?.data || error.message);
