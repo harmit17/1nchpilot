@@ -9,8 +9,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiConfig config={wagmiConfig}>
       <RainbowKitProvider
-        initialChain={31337} // Default to Anvil Local Fork
+        initialChain={1} // Default to Ethereum Mainnet
         chains={chains}
+        showRecentTransactions={true}
       >
         {children}
       </RainbowKitProvider>

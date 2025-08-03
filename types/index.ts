@@ -53,13 +53,29 @@ export interface RebalancingPlan {
 }
 
 export interface Swap {
-  fromToken: Token;
-  toToken: Token;
-  fromAmount: string;
-  toAmount: string;
-  fromAmountUSD: number;
-  toAmountUSD: number;
-  type: 'sell' | 'buy';
+  fromToken: string;
+  toToken: string;
+  amount: string;
+  estimatedOutput: string;
+  priceImpact: number;
+  gasEstimate: number;
+}
+
+export interface SwapAllocation {
+  fromToken: {
+    address: string;
+    symbol: string;
+    amount: string;
+    amountUSD: number;
+  };
+  toToken: {
+    address: string;
+    symbol: string;
+    targetAmount: string;
+    targetAmountUSD: number;
+    percentage: number;
+  };
+  quote?: any;
 }
 
 // 1inch API Types
@@ -202,28 +218,6 @@ export interface AppError {
 // Constants
 export const SUPPORTED_CHAINS: Chain[] = [
   {
-    id: 42161, // Arbitrum One
-    name: 'Arbitrum One',
-    rpcUrl: 'https://arb1.arbitrum.io/rpc',
-    blockExplorer: 'https://arbiscan.io',
-    nativeCurrency: {
-      name: 'Ether',
-      symbol: 'ETH',
-      decimals: 18,
-    },
-  },
-  {
-    id: 10, // Optimism
-    name: 'Optimism',
-    rpcUrl: 'https://mainnet.optimism.io',
-    blockExplorer: 'https://optimistic.etherscan.io',
-    nativeCurrency: {
-      name: 'Ether',
-      symbol: 'ETH',
-      decimals: 18,
-    },
-  },
-  {
     id: 1, // Ethereum Mainnet
     name: 'Ethereum',
     rpcUrl: 'https://mainnet.infura.io/v3/your-project-id',
@@ -235,13 +229,24 @@ export const SUPPORTED_CHAINS: Chain[] = [
     },
   },
   {
-    id: 31337, // Anvil Local (standard Anvil chain ID)
-    name: 'Anvil Local',
-    rpcUrl: 'http://localhost:8545',
-    blockExplorer: 'http://localhost:8545',
+    id: 11155111, // Sepolia Testnet
+    name: 'Sepolia',
+    rpcUrl: 'https://sepolia.infura.io/v3/your-project-id',
+    blockExplorer: 'https://sepolia.etherscan.io',
     nativeCurrency: {
       name: 'Ether',
       symbol: 'ETH',
+      decimals: 18,
+    },
+  },
+  {
+    id: 137, // Polygon
+    name: 'Polygon',
+    rpcUrl: 'https://polygon-rpc.com/',
+    blockExplorer: 'https://polygonscan.com',
+    nativeCurrency: {
+      name: 'MATIC',
+      symbol: 'MATIC',
       decimals: 18,
     },
   },

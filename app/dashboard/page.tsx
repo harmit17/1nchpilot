@@ -3,7 +3,7 @@
 import { useNetwork, useAccount, useBalance } from 'wagmi';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, RefreshCw, AlertTriangle, User, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, Plus, TrendingUp, Settings, Wallet, ArrowUpDown } from 'lucide-react';
+import { DollarSign, RefreshCw, AlertTriangle, User, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, Plus, TrendingUp, Settings, Wallet, ArrowUpDown, Target } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import PortfolioOverview from '@/components/PortfolioOverview';
 import PortfolioChart from '@/components/PortfolioChart';
@@ -12,6 +12,7 @@ import RebalancingPanel from '@/components/RebalancingPanel';
 import StrategySelector from '@/components/StrategySelector';
 import PortfolioAnalytics from '@/components/PortfolioAnalytics';
 import SwapPopup from '@/components/SwapPopup';
+import StrategyInvestment from '@/components/StrategyInvestment';
 import { Portfolio } from '@/types';
 import { oneInchAPI } from '@/lib/1inch-api';
 import { formatCurrency } from '@/utils';
@@ -36,6 +37,7 @@ export default function DashboardPage() {
   const [showStrategySelector, setShowStrategySelector] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSwap, setShowSwap] = useState(false);
+  const [showStrategyInvestment, setShowStrategyInvestment] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -195,8 +197,15 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
             >
+              <button
+                onClick={() => setShowStrategyInvestment(true)}
+                className="btn btn-primary btn-lg flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white border-0"
+              >
+                <Target className="w-5 h-5 mr-2" />
+                Invest in Strategy
+              </button>
               <button
                 onClick={() => setShowStrategySelector(true)}
                 className="btn btn-primary btn-lg flex-1"
@@ -376,6 +385,10 @@ export default function DashboardPage() {
 
       {showSwap && (
         <SwapPopup onClose={() => setShowSwap(false)} />
+      )}
+
+      {showStrategyInvestment && (
+        <StrategyInvestment onClose={() => setShowStrategyInvestment(false)} />
       )}
     </div>
   );
