@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Token, TokenBalance, Portfolio, OneInchOrder, OneInchOrderStatus, TransactionHistory, PortfolioMetrics } from '@/types';
+import { Token, TokenBalance, Portfolio, OneInchOrder, OneInchOrderStatus, TransactionHistory, PortfolioMetrics, OneInchQuote } from '@/types';
 
 // --- Configuration for Rate Limiting ---
 // The number of requests to send in a single parallel batch.
