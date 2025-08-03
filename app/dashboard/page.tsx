@@ -14,6 +14,7 @@ import StrategySelector from '@/components/StrategySelector';
 import PortfolioAnalytics from '@/components/PortfolioAnalytics';
 import SwapPopup from '@/components/SwapPopup';
 import StrategyInvestment from '@/components/StrategyInvestment';
+import UserStrategies from '@/components/UserStrategies';
 import { Portfolio } from '@/types';
 import { oneInchAPI } from '@/lib/1inch-api';
 import { formatCurrency, formatProfitLoss } from '@/utils';
@@ -441,6 +442,37 @@ export default function DashboardPage() {
                 </div>
               )}
             </motion.div>
+
+            {/* User Strategies Section - Only show for connected users */}
+            {isConnected && address && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="card p-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-blue-600" />
+                    Your Strategies
+                  </h2>
+                  <button
+                    onClick={() => setShowStrategySelector(true)}
+                    className="btn btn-outline btn-sm"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Create New
+                  </button>
+                </div>
+                
+                <UserStrategies 
+                  onSelectStrategy={(strategy) => {
+                    console.log('Selected strategy for investment:', strategy);
+                    setShowStrategyInvestment(true);
+                  }}
+                />
+              </motion.div>
+            )}
           </div>
         ) : (
           <div className="text-center py-12">

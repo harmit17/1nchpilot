@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, TrendingUp, Shield, Zap, DollarSign, Target, CheckCircle, Info, Loader2 } from 'lucide-react';
+import { X, TrendingUp, Shield, Zap, DollarSign, Target, CheckCircle, Info, Loader2, Calendar } from 'lucide-react';
 import { useNetwork, useAccount, useWalletClient } from 'wagmi';
 import { STRATEGIES, Strategy, getRiskColor, getStrategiesForChain, InvestmentCalculation } from '@/lib/strategies';
 import { strategyInvestmentService } from '@/lib/strategy-investment';
+import { useUserStrategies } from '@/hooks/useUserStrategies';
+import { Strategy as SavedStrategy } from '@/types';
 
 interface StrategyInvestmentProps {
   onClose: () => void;
@@ -15,8 +17,10 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
   const { chain } = useNetwork();
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { strategies: userStrategies, loading: loadingStrategies } = useUserStrategies();
   
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
+  const [selectedSavedStrategy, setSelectedSavedStrategy] = useState<SavedStrategy | null>(null);
   const [investmentAmount, setInvestmentAmount] = useState('');
   const [step, setStep] = useState<'select' | 'configure' | 'review' | 'execute' | 'complete'>('select');
   const [loading, setLoading] = useState(false);
@@ -37,7 +41,48 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
 
   const handleStrategySelect = (strategy: Strategy) => {
     setSelectedStrategy(strategy);
+    setSelectedSavedStrategy(null);
     setStep('configure');
+  };
+
+  const handleSavedStrategySelect = (savedStrategy: SavedStrategy) => {
+    // Convert saved strategy to investment strategy format
+    const convertedStrategy: Strategy = {
+      id: `saved-${savedStrategy.id}`,
+      name: savedStrategy.name,
+      description: savedStrategy.description || 'Your custom strategy',
+      riskLevel: 'Moderate' as const, // Default risk level for saved strategies
+      expectedAPY: '8-15%', // Default expected APY
+      chains: [savedStrategy.targetAllocation[0]?.token.chainId || 1],
+      benefits: ['Customized allocation', 'Your personal strategy', 'Flexible rebalancing'],
+      tokens: savedStrategy.targetAllocation.map(allocation => ({
+        address: allocation.token.address,
+        symbol: allocation.token.symbol,
+        name: allocation.token.name || allocation.token.symbol,
+        targetPercentage: allocation.targetPercentage,
+        color: getTokenColor(allocation.token.symbol), // Helper function for colors
+        decimals: allocation.token.decimals || 18
+      }))
+    };
+    
+    setSelectedStrategy(convertedStrategy);
+    setSelectedSavedStrategy(savedStrategy);
+    setStep('configure');
+  };
+
+  // Helper function to get token colors
+  const getTokenColor = (symbol: string): string => {
+    const colorMap: { [key: string]: string } = {
+      'ETH': '#627EEA',
+      'USDC': '#2775CA',
+      'USDT': '#26A17B',
+      'ARB': '#28A0F0',
+      'UNI': '#FF007A',
+      'LINK': '#375BD2',
+      'WBTC': '#F09242',
+      'DAI': '#F5AC37',
+    };
+    return colorMap[symbol] || '#6B7280'; // Default gray
   };
 
   const handleInvestmentConfigure = async () => {
@@ -235,6 +280,69 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
     </motion.div>
   );
 
+  const renderSavedStrategyCard = (savedStrategy: SavedStrategy) => (
+    <motion.div
+      key={savedStrategy.id}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl shadow-lg border-2 border-blue-200 p-6 cursor-pointer hover:shadow-xl transition-all duration-200"
+      onClick={() => handleSavedStrategySelect(savedStrategy)}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Target className="w-5 h-5 text-blue-600" />
+            <h3 className="text-xl font-bold text-gray-900">{savedStrategy.name}</h3>
+          </div>
+          <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+            <Target className="w-3 h-3" />
+            Your Strategy
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-bold text-blue-600">Custom</div>
+          <div className="text-sm text-gray-500">Portfolio</div>
+        </div>
+      </div>
+
+      <p className="text-gray-600 mb-4">{savedStrategy.description}</p>
+
+      {/* Token Allocation */}
+      <div className="mb-4">
+        <h4 className="font-semibold text-gray-900 mb-2">Portfolio Allocation</h4>
+        <div className="space-y-2">
+          {savedStrategy.targetAllocation.slice(0, 4).map((allocation) => (
+            <div key={allocation.token.address} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-full" 
+                  style={{ backgroundColor: getTokenColor(allocation.token.symbol) }}
+                />
+                <span className="text-sm font-medium">{allocation.token.symbol}</span>
+              </div>
+              <span className="text-sm text-gray-600">{allocation.targetPercentage}%</span>
+            </div>
+          ))}
+          {savedStrategy.targetAllocation.length > 4 && (
+            <div className="text-xs text-gray-500 text-center">
+              +{savedStrategy.targetAllocation.length - 4} more tokens
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <div className="flex items-center gap-1">
+          <Calendar className="w-3 h-3" />
+          Created {new Date(savedStrategy.createdAt).toLocaleDateString()}
+        </div>
+        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">
+          Ready to Invest
+        </span>
+      </div>
+    </motion.div>
+  );
+
   const renderTokenAllocation = () => {
     if (!selectedStrategy || !investmentAmount) return null;
     
@@ -376,14 +484,47 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
                   <span className="font-semibold text-blue-900">Network: {chain?.name || 'Not connected'}</span>
                 </div>
                 <p className="text-sm text-blue-700">
-                  Showing {availableStrategies.length} strategies available on this network. 
+                  Showing {availableStrategies.length} predefined strategies available on this network. 
                   Strategies use 1inch Fusion for MEV protection and optimal execution.
                 </p>
               </div>
 
-              {/* Strategy Cards */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {availableStrategies.map(renderStrategyCard)}
+              {/* Saved Strategies Section */}
+              {address && (
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Target className="w-6 h-6 text-blue-600" />
+                    Your Saved Strategies
+                  </h3>
+                  
+                  {loadingStrategies ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="w-6 h-6 text-blue-600 mx-auto mb-2 animate-spin" />
+                      <p className="text-gray-600">Loading your strategies...</p>
+                    </div>
+                  ) : userStrategies.length > 0 ? (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                      {userStrategies.map(renderSavedStrategyCard)}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 mb-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <Target className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600 text-sm mb-2">No saved strategies yet</p>
+                      <p className="text-gray-500 text-xs">Create your first strategy to see it here</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Predefined Strategy Templates */}
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-6 h-6 text-green-600" />
+                  Predefined Strategies
+                </h3>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {availableStrategies.map(renderStrategyCard)}
+                </div>
               </div>
             </div>
           )}
@@ -391,14 +532,38 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
           {step === 'configure' && selectedStrategy && (
             <div className="max-w-2xl mx-auto">
               <div className="mb-6 p-6 bg-gray-50 rounded-lg">
-                <h4 className="text-lg font-bold text-gray-900 mb-2">{selectedStrategy.name}</h4>
-                <p className="text-gray-600 mb-4">{selectedStrategy.description}</p>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full font-medium ${getRiskColor(selectedStrategy.riskLevel)}`}>
-                    {getRiskIcon(selectedStrategy.riskLevel)}
-                    {selectedStrategy.riskLevel} Risk
+                <div className="flex items-start gap-3 mb-4">
+                  {selectedSavedStrategy ? (
+                    <Target className="w-6 h-6 text-blue-600 mt-1" />
+                  ) : (
+                    getRiskIcon(selectedStrategy.riskLevel)
+                  )}
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-gray-900 mb-2">{selectedStrategy.name}</h4>
+                    <p className="text-gray-600 mb-4">{selectedStrategy.description}</p>
                   </div>
-                  <div className="text-green-600 font-semibold">{selectedStrategy.expectedAPY} APY</div>
+                </div>
+                
+                <div className="flex items-center gap-4 text-sm">
+                  {selectedSavedStrategy ? (
+                    <>
+                      <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full font-medium bg-blue-100 text-blue-800">
+                        <Target className="w-3 h-3" />
+                        Your Strategy
+                      </div>
+                      <div className="text-gray-600">
+                        Created {new Date(selectedSavedStrategy.createdAt).toLocaleDateString()}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full font-medium ${getRiskColor(selectedStrategy.riskLevel)}`}>
+                        {getRiskIcon(selectedStrategy.riskLevel)}
+                        {selectedStrategy.riskLevel} Risk
+                      </div>
+                      <div className="text-green-600 font-semibold">{selectedStrategy.expectedAPY} APY</div>
+                    </>
+                  )}
                 </div>
               </div>
 
