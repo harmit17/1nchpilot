@@ -19,7 +19,6 @@ export interface Strategy {
   tokens: StrategyToken[];
   benefits: string[];
   chains: number[]; // Supported chain IDs
-  minInvestment: string; // In ETH
 }
 
 export interface InvestmentCalculation {
@@ -64,7 +63,6 @@ export const STRATEGIES: Strategy[] = [
     riskLevel: 'Conservative',
     expectedAPY: '8-12%',
     totalValueLocked: '$2.4B',
-    minInvestment: '0.1',
     chains: [1, 42161, 10], // Ethereum, Arbitrum, Optimism
     tokens: [
       {
@@ -121,7 +119,6 @@ export const STRATEGIES: Strategy[] = [
     riskLevel: 'Aggressive',
     expectedAPY: '15-25%',
     totalValueLocked: '$890M',
-    minInvestment: '0.05',
     chains: [1, 42161, 10], // Ethereum, Arbitrum, Optimism
     tokens: [
       {
@@ -178,7 +175,6 @@ export const STRATEGIES: Strategy[] = [
     riskLevel: 'Conservative',
     expectedAPY: '5-8%',
     totalValueLocked: '$1.8B',
-    minInvestment: '0.01',
     chains: [1, 42161, 10], // Ethereum, Arbitrum, Optimism
     tokens: [
       {

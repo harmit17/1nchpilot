@@ -42,7 +42,7 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
 
   const handleInvestmentConfigure = async () => {
     if (!investmentAmount || parseFloat(investmentAmount) <= 0 || !selectedStrategy || !chain || !address) {
-      setError('Please fill in all required fields and connect your wallet');
+      setError('Please enter an investment amount and connect your wallet');
       return;
     }
 
@@ -190,14 +190,10 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+      <div className="grid grid-cols-1 gap-4 mb-4 text-sm">
         <div>
           <div className="text-gray-500">TVL</div>
           <div className="font-semibold">{strategy.totalValueLocked}</div>
-        </div>
-        <div>
-          <div className="text-gray-500">Min Investment</div>
-          <div className="font-semibold">{strategy.minInvestment} ETH</div>
         </div>
       </div>
 
@@ -389,15 +385,15 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
                   </label>
                   <input
                     type="number"
-                    step="0.001"
-                    min={selectedStrategy.minInvestment}
+                    step="0.0001"
+                    min="0"
                     value={investmentAmount}
                     onChange={(e) => setInvestmentAmount(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder={`Minimum: ${selectedStrategy.minInvestment} ETH`}
+                    placeholder="Enter amount in ETH"
                   />
                   <p className="text-sm text-gray-500 mt-1">
-                    Minimum investment: {selectedStrategy.minInvestment} ETH
+                    Enter any amount in ETH
                   </p>
                 </div>
 
@@ -413,7 +409,7 @@ export default function StrategyInvestment({ onClose }: StrategyInvestmentProps)
                   </button>
                   <button
                     onClick={handleInvestmentConfigure}
-                    disabled={loading || !investmentAmount || parseFloat(investmentAmount) < parseFloat(selectedStrategy.minInvestment)}
+                    disabled={loading || !investmentAmount || parseFloat(investmentAmount) <= 0}
                     className="flex-1 py-3 px-6 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                   >
                     {loading && <Loader2 className="w-4 h-4 animate-spin" />}
